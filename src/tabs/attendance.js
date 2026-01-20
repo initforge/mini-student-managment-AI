@@ -1,8 +1,8 @@
 // Attendance Tab - Daily attendance tracking with Firebase and Charts (Production Mode)
 import { getStudents } from './students.js';
 import { showToast } from '../utils/toast.js';
-import { sendZaloNotification } from '../services/notification.js';
 import { generateAbsenceNotice } from '../services/ai.js';
+import { sendAbsenceNotification, isSmsConfigured } from '../services/sms.js';
 import {
   getAttendance as fetchAttendance,
   saveAttendance as saveAttendanceToDb,
@@ -217,20 +217,39 @@ async function saveAttendance() {
     // Find absent students
     const absentStudents = students.filter(s => dayData[s.id] === 'absent');
 
-    if (absentStudents.length > 0) {
-      showToast(`Đang gửi thông báo cho ${absentStudents.length} phụ huynh...`, 'info');
+    if (absentStudents.length > 0 && isSmsConfigured()) {
+      showToast(`Đang gửi SMS cho ${absentStudents.length} phụ huynh...`, 'info');
+
+      let successCount = 0;
+      let failCount = 0;
 
       for (const student of absentStudents) {
+        // Use phone number (stored in zaloId field for now)
+        const parentPhone = student.zaloId || student.phone;
+        if (!parentPhone) {
+          console.warn(`No phone for ${student.name}`);
+          failCount++;
+          continue;
+        }
+
         try {
-          const message = await generateAbsenceNotice(student.name, date, student.class);
-          await sendZaloNotification(student.zaloId, message);
-          console.log(`📤 Sent notification for ${student.name}:`, message);
+          await sendAbsenceNotification(student.name, parentPhone, date);
+          console.log(`📤 SMS sent for ${student.name}`);
+          successCount++;
         } catch (err) {
-          console.error('Notification error:', err);
+          console.error('SMS error:', err);
+          failCount++;
         }
       }
 
-      showToast(`Đã lưu và gửi thông báo cho ${absentStudents.length} phụ huynh!`, 'success');
+      if (successCount > 0) {
+        showToast(`Đã lưu và gửi ${successCount} SMS thành công!`, 'success');
+      }
+      if (failCount > 0) {
+        showToast(`${failCount} tin nhắn thất bại`, 'warning');
+      }
+    } else if (absentStudents.length > 0 && !isSmsConfigured()) {
+      showToast('Điểm danh đã lưu! (Cấu hình SMS trong Cài đặt để gửi thông báo)', 'info');
     } else {
       showToast('Điểm danh đã được lưu!', 'success');
     }

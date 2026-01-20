@@ -592,8 +592,25 @@
               <a href="https://ai.google.dev" target="_blank" class="link-help">(Lấy key)</a>
             </label>
             <input type="password" id="gemini-api-key" placeholder="AIzaSy..." class="input-field">
-            <small class="form-hint">Key sẽ được lưu an toàn trong trình duyệt của bạn</small>
           </div>
+
+          <!-- SMS Config -->
+          <div class="form-group">
+            <label class="label-with-icon">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path
+                  d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72" />
+              </svg>
+              SMS eSMS.vn
+              <a href="https://esms.vn" target="_blank" class="link-help">(Đăng ký)</a>
+            </label>
+            <input type="text" id="sms-api-key" placeholder="API Key" class="input-field" style="margin-bottom: 8px;">
+            <input type="password" id="sms-secret-key" placeholder="Secret Key" class="input-field"
+              style="margin-bottom: 8px;">
+            <input type="text" id="sms-brand-name" placeholder="Brand Name (tùy chọn)" class="input-field">
+            <small class="form-hint">Gửi tin nhắn SMS đến phụ huynh</small>
+          </div>
+
           <div class="form-group">
             <label class="label-with-icon">
               <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -604,20 +621,15 @@
             <div class="status-indicators">
               <div class="status-item">
                 <span class="status-dot" id="status-firebase"></span>
-                <svg class="icon icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                  <polyline points="22,6 12,13 2,6" />
-                </svg>
                 <span>Firebase</span>
               </div>
               <div class="status-item">
                 <span class="status-dot" id="status-gemini"></span>
-                <svg class="icon icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="12 2 2 7 12 12 22 7 12 2" />
-                  <polyline points="2 17 12 22 22 17" />
-                  <polyline points="2 12 12 17 22 12" />
-                </svg>
                 <span>Gemini AI</span>
+              </div>
+              <div class="status-item">
+                <span class="status-dot" id="status-sms"></span>
+                <span>SMS</span>
               </div>
             </div>
           </div>

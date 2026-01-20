@@ -1,11 +1,15 @@
 // Settings Service - Manages API keys and app configuration
 import { showToast } from '../utils/toast.js';
+import { saveSmsConfig, isSmsConfigured } from './sms.js';
 
 const STORAGE_KEY = 'eduassist_settings';
 
 // Default settings
 let settings = {
     geminiApiKey: '',
+    smsApiKey: '',
+    smsSecretKey: '',
+    smsBrandName: '',
 };
 
 // Load settings from localStorage
@@ -26,6 +30,12 @@ export function saveSettings(newSettings) {
     settings = { ...settings, ...newSettings };
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+
+        // Also save SMS config to its own storage
+        if (newSettings.smsApiKey !== undefined) {
+            saveSmsConfig(settings.smsApiKey, settings.smsSecretKey, settings.smsBrandName);
+        }
+
         return true;
     } catch (err) {
         console.error('Error saving settings:', err);
@@ -82,6 +92,15 @@ function openSettingsModal() {
             apiKeyInput.value = settings.geminiApiKey;
         }
 
+        // Populate SMS values
+        const smsApiKey = document.getElementById('sms-api-key');
+        const smsSecretKey = document.getElementById('sms-secret-key');
+        const smsBrandName = document.getElementById('sms-brand-name');
+
+        if (smsApiKey && settings.smsApiKey) smsApiKey.value = settings.smsApiKey;
+        if (smsSecretKey && settings.smsSecretKey) smsSecretKey.value = settings.smsSecretKey;
+        if (smsBrandName && settings.smsBrandName) smsBrandName.value = settings.smsBrandName;
+
         updateStatusIndicators();
         modal.classList.add('active');
     }
@@ -96,9 +115,15 @@ function closeSettingsModal() {
 
 function handleSaveSettings() {
     const apiKey = document.getElementById('gemini-api-key')?.value?.trim();
+    const smsApiKey = document.getElementById('sms-api-key')?.value?.trim();
+    const smsSecretKey = document.getElementById('sms-secret-key')?.value?.trim();
+    const smsBrandName = document.getElementById('sms-brand-name')?.value?.trim();
 
     const newSettings = {
         geminiApiKey: apiKey || '',
+        smsApiKey: smsApiKey || '',
+        smsSecretKey: smsSecretKey || '',
+        smsBrandName: smsBrandName || '',
     };
 
     if (saveSettings(newSettings)) {
@@ -120,10 +145,12 @@ export function updateStatusIndicators() {
     // Gemini status
     const geminiStatus = document.getElementById('status-gemini');
     if (geminiStatus) {
-        if (isGeminiConfigured()) {
-            geminiStatus.className = 'status-dot connected';
-        } else {
-            geminiStatus.className = 'status-dot disconnected';
-        }
+        geminiStatus.className = isGeminiConfigured() ? 'status-dot connected' : 'status-dot disconnected';
+    }
+
+    // SMS status
+    const smsStatus = document.getElementById('status-sms');
+    if (smsStatus) {
+        smsStatus.className = isSmsConfigured() ? 'status-dot connected' : 'status-dot disconnected';
     }
 }
