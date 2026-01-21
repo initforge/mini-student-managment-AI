@@ -1,7 +1,7 @@
 // Homework Tab - Assignment management with Firebase and SMS
 import { openModal, closeModal } from '../utils/modal.js';
 import { showToast } from '../utils/toast.js';
-import { sendHomeworkReminder, isSmsConfigured } from '../services/sms.js';
+import { sendHomeworkReminder, isEmailConfigured } from '../services/notification.js';
 import { getStudentsByClass, getClasses } from './students.js';
 import {
     getHomework as fetchHomework,
@@ -143,7 +143,7 @@ async function saveHomework() {
         document.getElementById('form-add-homework')?.reset();
 
         // Send SMS notifications if configured
-        if (isSmsConfigured()) {
+        if (isEmailConfigured()) {
             showToast('Đang gửi SMS cho phụ huynh...', 'info');
             const students = getStudentsByClass(hwClass);
 

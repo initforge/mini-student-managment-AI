@@ -1,7 +1,19 @@
-// AI Service - Gemini API integration with mock fallback
+// AI Service - Gemini API integration
+// ============================================================
+// GEMINI 2.5 MODELS - Updated Jan 2026
+// Using stable GA versions (Generally Available since June 2025)
+// Preview versions have expired, using production model names
+// ============================================================
 import { getGeminiApiKey, isGeminiConfigured } from './settings.js';
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent';
+// Gemini 2.5 GA models (stable, production-ready)
+const GEMINI_MODELS = [
+    'gemini-2.5-flash',           // 2.5 Flash - Fast, optimized (GA June 2025)
+    'gemini-2.5-pro',             // 2.5 Pro - High capability (GA June 2025)  
+    'gemini-2.0-flash',           // 2.0 Flash - Fallback (GA Feb 2025)
+];
+
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // Generate absence notice for parent notification
 export async function generateAbsenceNotice(studentName, date, className) {
@@ -19,13 +31,13 @@ Thông tin:
 
 Yêu cầu: Tin nhắn ngắn gọn, tối đa 100 từ, bằng tiếng Việt.`;
 
-            return await callGeminiAPI(prompt);
+            return await callGeminiAPIWithFallback(prompt);
         } catch (err) {
             console.error('Gemini API error:', err);
         }
     }
 
-    // Fallback to mock
+    // Fallback to template
     return `Kính gửi Quý Phụ huynh,\n\nNhà trường xin thông báo: Em ${studentName} lớp ${className} đã vắng mặt trong buổi học ngày ${formattedDate}.\n\nKính mong Quý Phụ huynh xác nhận lý do.\n\nTrân trọng,\nNhà trường`;
 }
 
@@ -44,7 +56,7 @@ export async function generateHomeworkReminder(subject, content, deadline) {
 
 Yêu cầu: Ngắn gọn, lịch sự, tối đa 80 từ, tiếng Việt.`;
 
-            return await callGeminiAPI(prompt);
+            return await callGeminiAPIWithFallback(prompt);
         } catch (err) {
             console.error('Gemini API error:', err);
         }
@@ -53,45 +65,8 @@ Yêu cầu: Ngắn gọn, lịch sự, tối đa 80 từ, tiếng Việt.`;
     return `Kính gửi Quý Phụ huynh,\n\nGiáo viên vừa giao bài tập môn ${subject}:\n\n📝 ${content}\n\n⏰ Hạn nộp: ${formattedDeadline}\n\nTrân trọng!`;
 }
 
-// Question bank for quiz generation
-const questionBank = {
-    'phuong-trinh-bac-nhat': [
-        { text: 'Giải phương trình: 2x + 5 = 11', options: ['x = 2', 'x = 3', 'x = 4', 'x = 5'], correctIndex: 1 },
-        { text: 'Tìm x biết: 3x - 7 = 8', options: ['x = 3', 'x = 4', 'x = 5', 'x = 6'], correctIndex: 2 },
-        { text: 'Nghiệm của phương trình 4x = 20 là:', options: ['x = 4', 'x = 5', 'x = 6', 'x = 16'], correctIndex: 1 },
-        { text: 'Giải: x/2 + 3 = 7', options: ['x = 2', 'x = 4', 'x = 8', 'x = 10'], correctIndex: 2 },
-        { text: 'Tìm x: 5(x - 2) = 15', options: ['x = 3', 'x = 4', 'x = 5', 'x = 6'], correctIndex: 2 },
-    ],
-    'phuong-trinh-bac-hai': [
-        { text: 'Số nghiệm của phương trình x² - 4 = 0 là:', options: ['0', '1', '2', '3'], correctIndex: 2 },
-        { text: 'Giải phương trình x² = 9', options: ['x = 3', 'x = -3', 'x = ±3', 'x = 9'], correctIndex: 2 },
-        { text: 'Tính Δ của phương trình x² - 5x + 6 = 0', options: ['Δ = 1', 'Δ = -1', 'Δ = 25', 'Δ = 0'], correctIndex: 0 },
-        { text: 'Phương trình x² + 1 = 0 có bao nhiêu nghiệm thực?', options: ['0', '1', '2', 'Vô số'], correctIndex: 0 },
-        { text: 'Tổng 2 nghiệm của x² - 7x + 10 = 0 là:', options: ['5', '7', '10', '-7'], correctIndex: 1 },
-    ],
-    'he-phuong-trinh': [
-        { text: 'Hệ phương trình x + y = 5, x - y = 1 có nghiệm (x, y) là:', options: ['(2, 3)', '(3, 2)', '(4, 1)', '(1, 4)'], correctIndex: 1 },
-        { text: 'Giải hệ: 2x + y = 7, x + y = 4', options: ['(3, 1)', '(2, 2)', '(1, 3)', '(4, -1)'], correctIndex: 0 },
-    ],
-    'duong-tron': [
-        { text: 'Diện tích hình tròn bán kính r = 3 là:', options: ['6π', '9π', '12π', '3π'], correctIndex: 1 },
-        { text: 'Chu vi hình tròn bán kính r là:', options: ['πr', '2πr', 'πr²', '2πr²'], correctIndex: 1 },
-    ],
-    'can-bac-hai': [
-        { text: '√50 = ?', options: ['5√2', '2√5', '25', '10'], correctIndex: 0 },
-        { text: '√12 + √27 = ?', options: ['5√3', '√39', '6√3', '7√3'], correctIndex: 0 },
-    ],
-};
-
-const defaultQuestions = [
-    { text: 'Tính: 15 + 27 = ?', options: ['32', '42', '52', '62'], correctIndex: 1 },
-    { text: '8 × 7 = ?', options: ['54', '55', '56', '57'], correctIndex: 2 },
-    { text: '100 ÷ 4 = ?', options: ['20', '25', '30', '35'], correctIndex: 1 },
-];
-
-// Generate math quiz questions
+// Generate math quiz questions - ONLY Gemini API, NO mock data
 export async function generateMathQuestions(grade, topic, difficulty, count) {
-    // ONLY use Gemini API - NO fallback mock data
     if (!isGeminiConfigured()) {
         throw new Error('Vui lòng cấu hình Gemini API Key trong Cài đặt');
     }
@@ -109,7 +84,7 @@ export async function generateMathQuestions(grade, topic, difficulty, count) {
 
 Chỉ trả về JSON array, không giải thích thêm.`;
 
-    const response = await callGeminiAPI(prompt);
+    const response = await callGeminiAPIWithFallback(prompt);
 
     // Parse JSON response
     try {
@@ -141,7 +116,7 @@ export async function generateQuizName(grade, topic, difficulty, questionCount) 
             const prompt = `Tạo một tên ngắn gọn, hấp dẫn cho bài kiểm tra Toán lớp ${grade}, chủ đề ${topic}, độ khó ${difficulty}, ${questionCount} câu. 
 Chỉ trả về tên bài kiểm tra (tối đa 50 ký tự), không giải thích.`;
 
-            return await callGeminiAPI(prompt);
+            return await callGeminiAPIWithFallback(prompt);
         } catch (err) {
             console.error('Gemini name generation error:', err);
         }
@@ -159,7 +134,7 @@ export async function chat(message, context = 'general') {
             const prompt = `Bạn là trợ lý AI cho giáo viên. Trả lời ngắn gọn bằng tiếng Việt.
 Người dùng nói: "${message}"`;
 
-            return await callGeminiAPI(prompt);
+            return await callGeminiAPIWithFallback(prompt);
         } catch (err) {
             console.error('Gemini chat error:', err);
         }
@@ -183,12 +158,47 @@ Người dùng nói: "${message}"`;
     return `Tôi hiểu bạn nói: "${message}". Tôi có thể hỗ trợ soạn thông báo, nhắc bài tập hoặc tạo câu hỏi trắc nghiệm.`;
 }
 
-// Call Gemini API
-async function callGeminiAPI(prompt) {
+// ============================================================
+// GEMINI 2.5 API CALLER - With clear quota error handling
+// ============================================================
+async function callGeminiAPIWithFallback(prompt) {
     const apiKey = getGeminiApiKey();
     if (!apiKey) throw new Error('API key not configured');
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    let lastError = null;
+    let quotaExceeded = false;
+
+    for (const model of GEMINI_MODELS) {
+        try {
+            console.log(`[Gemini 2.5] Trying model: ${model}`);
+            const result = await callGeminiAPI(prompt, model);
+            console.log(`[Gemini 2.5] ✓ Success with model: ${model}`);
+            return result;
+        } catch (err) {
+            console.warn(`[Gemini 2.5] ✗ Model ${model} failed:`, err.message);
+            lastError = err;
+
+            // Check for quota exceeded
+            if (err.message.includes('429')) {
+                quotaExceeded = true;
+            }
+        }
+    }
+
+    // Provide helpful error message
+    if (quotaExceeded) {
+        throw new Error('⚠️ Gemini API đã hết quota. Vui lòng tạo API key mới tại aistudio.google.com hoặc chờ reset quota.');
+    }
+
+    throw lastError || new Error('Tất cả Gemini 2.5 models đều không khả dụng');
+}
+
+// Direct API call to specific model
+async function callGeminiAPI(prompt, model) {
+    const apiKey = getGeminiApiKey();
+    const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -198,15 +208,15 @@ async function callGeminiAPI(prompt) {
 
     if (!response.ok) {
         const errorText = await response.text();
-        console.error('Gemini API error response:', errorText);
-        throw new Error(`API error: ${response.status} - ${errorText.substring(0, 100)}`);
+        console.error(`[Gemini 2.5] ${model} error:`, errorText.substring(0, 200));
+        throw new Error(`${model}: ${response.status}`);
     }
 
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
-        console.error('No text in Gemini response:', JSON.stringify(data));
+        console.error('[Gemini 2.5] No text in response:', JSON.stringify(data).substring(0, 200));
         throw new Error('No response from Gemini');
     }
 

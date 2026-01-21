@@ -7,7 +7,7 @@ import { initQuiz } from './tabs/quiz.js';
 import { initChatbot } from './chatbot.js';
 import { showToast } from './utils/toast.js';
 import { initSettings } from './services/settings.js';
-import { initSmsService } from './services/sms.js';
+import { initNotificationService } from './services/notification.js';
 import { getApp } from './services/firebase.js';
 
 // App State
@@ -78,11 +78,11 @@ function initDashboard() {
   // Initialize settings
   initSettings();
 
-  // Initialize SMS service with Firebase app
+  // Initialize Email notification service with Firebase app
   try {
-    initSmsService(getApp());
+    initNotificationService(getApp());
   } catch (err) {
-    console.warn('SMS service init failed:', err);
+    console.warn('Email service init failed:', err);
   }
 
   // Initialize router for tab navigation

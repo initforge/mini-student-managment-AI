@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useToast } from '../../contexts/ToastContext'
+import { useDialog } from '../DialogProvider'
 import Modal from '../Modal'
 import {
     subscribeToClasses,
@@ -8,10 +9,11 @@ import {
     deleteHomework
 } from '../../services/firebase'
 import { subscribeToStudents } from '../../services/firebase'
-import { sendHomeworkReminder, isSmsConfigured } from '../../services/sms'
+import { sendHomeworkReminder, isEmailConfigured } from '../../services/notification'
 
 export default function HomeworkTab() {
     const { showToast } = useToast()
+    const { confirm } = useDialog()
     const [homework, setHomework] = useState([])
     const [classes, setClasses] = useState([])
     const [students, setStudents] = useState([])
@@ -54,24 +56,24 @@ export default function HomeworkTab() {
             setShowAdd(false)
             setForm({ subject: '', class: '', content: '', deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
 
-            // Send SMS
-            if (isSmsConfigured()) {
+            // Send Email
+            if (isEmailConfigured()) {
                 const classStudents = students.filter(s => s.class === form.class)
-                showToast('Đang gửi SMS cho phụ huynh...', 'info')
+                showToast('Đang gửi Email cho phụ huynh...', 'info')
                 let successCount = 0
                 for (const student of classStudents) {
-                    const phone = student.zaloId || student.phone
-                    if (!phone) continue
+                    if (!student.parentEmail) continue
                     try {
-                        await sendHomeworkReminder(student.name, phone, form.subject, formatDate(form.deadline))
+                        const message = `Kính gửi Phụ huynh,\n\nEm ${student.name} lớp ${student.class} có bài tập mới:\n\n📚 Môn: ${form.subject}\n📝 Nội dung: ${form.content}\n📅 Hạn nộp: ${formatDate(form.deadline)}\n\nKính mong Quý Phụ huynh nhắc nhở em hoàn thành đúng hạn.\n\nTrân trọng,\nEduAssist`
+                        await sendHomeworkReminder(student, form, message)
                         successCount++
                     } catch (err) {
-                        console.error('SMS error:', err)
+                        console.error('Email error:', err)
                     }
                 }
-                if (successCount > 0) showToast(`Đã gửi ${successCount} SMS thông báo bài tập!`, 'success')
+                if (successCount > 0) showToast(`Đã gửi ${successCount} Email thông báo bài tập!`, 'success')
             } else {
-                showToast('Đã lưu bài tập! (Cấu hình SMS để gửi thông báo)', 'info')
+                showToast('Đã lưu bài tập! (Cấu hình Email để gửi thông báo)', 'info')
             }
 
             await loadHomework()
@@ -83,7 +85,8 @@ export default function HomeworkTab() {
     }
 
     const handleDelete = async (hw) => {
-        if (!confirm('Xác nhận xóa bài tập này?')) return
+        const confirmed = await confirm('Xác nhận xóa bài tập này?')
+        if (!confirmed) return
         try {
             await deleteHomework(hw.id)
             showToast('Đã xóa bài tập', 'success')
@@ -135,9 +138,6 @@ export default function HomeworkTab() {
                                         <span>{isOverdue ? 'Quá hạn' : `Còn ${daysLeft} ngày`}</span>
                                         <span style={{ color: 'var(--color-gray-400)' }}>({formatDate(hw.deadline)})</span>
                                     </div>
-                                    <span className={`homework-status ${hw.notified ? 'sent' : 'pending'}`}>
-                                        {hw.notified ? '✅ Đã thông báo' : '⏳ Chờ gửi'}
-                                    </span>
                                 </div>
                             </div>
                         )

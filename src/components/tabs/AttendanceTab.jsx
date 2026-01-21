@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useToast } from '../../contexts/ToastContext'
 import {
     subscribeToStudents,
@@ -6,7 +6,8 @@ import {
     saveAttendance,
     getAttendanceRange
 } from '../../services/firebase'
-import { sendAbsenceNotification, isSmsConfigured } from '../../services/sms'
+import { sendAbsenceNotification, isEmailConfigured } from '../../services/notification'
+import { createAttendancePieChart, createWeeklyBarChart, generateWeekData, destroyCharts } from '../../services/charts'
 
 export default function AttendanceTab() {
     const { showToast } = useToast()
@@ -14,6 +15,10 @@ export default function AttendanceTab() {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0])
     const [attendance, setAttendance] = useState({})
     const [loading, setLoading] = useState(false)
+    const [weeklyData, setWeeklyData] = useState(null)
+    const pieChartRef = useRef(null)
+    const barChartRef = useRef(null)
+    const chartsInitialized = useRef(false)
 
     useEffect(() => {
         const unsub = subscribeToStudents(setStudents)
@@ -34,8 +39,47 @@ export default function AttendanceTab() {
         }
     }
 
+    // Load weekly data for chart
+    const loadWeeklyData = async () => {
+        try {
+            // Calculate date range for last 7 days
+            const today = new Date()
+            const startDate = new Date(today)
+            startDate.setDate(startDate.getDate() - 6) // 6 days ago
+
+            const formatDate = (d) => d.toISOString().split('T')[0]
+            const attendanceByDate = await getAttendanceRange(formatDate(startDate), formatDate(today))
+            const weekData = generateWeekData(attendanceByDate, students.length)
+            setWeeklyData(weekData)
+        } catch (err) {
+            console.error('Error loading weekly data:', err)
+        }
+    }
+
     const presentCount = students.filter(s => attendance[s.id] !== 'absent').length
     const absentCount = students.filter(s => attendance[s.id] === 'absent').length
+
+    // Render charts when data changes
+    useEffect(() => {
+        if (students.length > 0) {
+            loadWeeklyData()
+            // Render pie chart
+            setTimeout(() => {
+                createAttendancePieChart('today-chart', presentCount, absentCount)
+            }, 100)
+        }
+        return () => destroyCharts()
+    }, [students, attendance, presentCount, absentCount])
+
+    // Render weekly chart when data available
+    useEffect(() => {
+        if (weeklyData) {
+            setTimeout(() => {
+                createWeeklyBarChart('weekly-chart', weeklyData)
+            }, 100)
+        }
+    }, [weeklyData])
+
 
     const toggleAttendance = (studentId, status) => {
         setAttendance(prev => ({ ...prev, [studentId]: status }))
@@ -55,27 +99,27 @@ export default function AttendanceTab() {
 
             const absentStudents = students.filter(s => attendance[s.id] === 'absent')
 
-            if (absentStudents.length > 0 && isSmsConfigured()) {
-                showToast(`Đang gửi SMS cho ${absentStudents.length} phụ huynh...`, 'info')
+            if (absentStudents.length > 0 && isEmailConfigured()) {
+                showToast(`Đang gửi Email cho ${absentStudents.length} phụ huynh...`, 'info')
                 let successCount = 0
                 let failCount = 0
 
                 for (const student of absentStudents) {
-                    const phone = student.zaloId || student.phone
-                    if (!phone) { failCount++; continue }
+                    if (!student.parentEmail) { failCount++; continue }
                     try {
-                        await sendAbsenceNotification(student.name, phone, date)
+                        const message = `Kính gửi Phụ huynh,\n\nNhà trường xin thông báo: Em ${student.name} lớp ${student.class} đã vắng mặt trong buổi học ngày ${new Date(date).toLocaleDateString('vi-VN')}.\n\nKính mong Quý Phụ huynh xác nhận lý do.\n\nTrân trọng,\nEduAssist`
+                        await sendAbsenceNotification(student, date, message)
                         successCount++
                     } catch (err) {
-                        console.error('SMS error:', err)
+                        console.error('Email error:', err)
                         failCount++
                     }
                 }
 
-                if (successCount > 0) showToast(`Đã lưu và gửi ${successCount} SMS thành công!`, 'success')
-                if (failCount > 0) showToast(`${failCount} tin nhắn thất bại`, 'warning')
-            } else if (absentStudents.length > 0 && !isSmsConfigured()) {
-                showToast('Điểm danh đã lưu! (Cấu hình SMS trong Cài đặt để gửi thông báo)', 'info')
+                if (successCount > 0) showToast(`Đã lưu và gửi ${successCount} Email thành công!`, 'success')
+                if (failCount > 0) showToast(`${failCount} email thất bại (thiếu email phụ huynh)`, 'warning')
+            } else if (absentStudents.length > 0 && !isEmailConfigured()) {
+                showToast('Điểm danh đã lưu! (Cấu hình Email trong Cài đặt để gửi thông báo)', 'info')
             } else {
                 showToast('Điểm danh đã được lưu!', 'success')
             }
@@ -118,6 +162,16 @@ export default function AttendanceTab() {
                     <span className="summary-icon">❌</span>
                     <span className="summary-count">{absentCount}</span>
                     <span className="summary-label">Vắng</span>
+                </div>
+            </div>
+
+            {/* Charts Row */}
+            <div className="charts-row">
+                <div className="chart-card">
+                    <canvas id="today-chart" style={{ maxHeight: '180px' }}></canvas>
+                </div>
+                <div className="chart-card chart-wide">
+                    <canvas id="weekly-chart" style={{ maxHeight: '180px' }}></canvas>
                 </div>
             </div>
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useToast } from '../../contexts/ToastContext'
+import { useDialog } from '../DialogProvider'
 import { getQuizzes, saveQuiz, deleteQuiz } from '../../services/firebase'
 import { generateMathQuestions, generateQuizName } from '../../services/ai'
 import { isGeminiConfigured } from '../../services/settings'
@@ -23,6 +24,7 @@ const topicsByGrade = {
 
 export default function QuizTab() {
     const { showToast } = useToast()
+    const { confirm } = useDialog()
     const [savedQuizzes, setSavedQuizzes] = useState([])
     const [generatedQuestions, setGeneratedQuestions] = useState([])
     const [loading, setLoading] = useState(false)
@@ -88,9 +90,7 @@ export default function QuizTab() {
                 count: generatedQuestions.length
             })
 
-            const shareableLink = `https://mini-student-chat.web.app/quiz-template.html?id=${quizId}`
             showToast(`Đã lưu: ${quizName}`, 'success')
-            setTimeout(() => prompt('Link chia sẻ bài kiểm tra (Ctrl+C để copy):', shareableLink), 500)
             await loadQuizzes()
         } catch (err) {
             showToast('Lỗi: ' + err.message, 'error')
@@ -98,7 +98,8 @@ export default function QuizTab() {
     }
 
     const handleDelete = async (quiz) => {
-        if (!confirm(`Xóa bài "${quiz.name || quiz.topic}"?`)) return
+        const confirmed = await confirm(`Xóa bài "${quiz.name || quiz.topic}"?`)
+        if (!confirmed) return
         try {
             await deleteQuiz(quiz.id)
             showToast('Đã xóa bài kiểm tra', 'success')
@@ -115,7 +116,23 @@ export default function QuizTab() {
         }
         setGeneratedQuestions(quiz.questions)
         setCurrentQuizConfig({ grade: quiz.grade, topic: quiz.topic, difficulty: quiz.difficulty })
-        showToast('Đã tải bài kiểm tra', 'success')
+    }
+
+    const handleCopyLink = async (quizId) => {
+        const link = `https://aisupportgv.web.app/#quiz/${quizId}`
+        try {
+            await navigator.clipboard.writeText(link)
+            showToast('Đã copy link!', 'success')
+        } catch (err) {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea')
+            textArea.value = link
+            document.body.appendChild(textArea)
+            textArea.select()
+            document.execCommand('copy')
+            document.body.removeChild(textArea)
+            showToast('Đã copy link!', 'success')
+        }
     }
 
     const formatMathText = (text) => {
@@ -141,12 +158,23 @@ export default function QuizTab() {
                                 <span className="empty-hint">Chưa có bài lưu</span>
                             ) : (
                                 [...savedQuizzes].sort((a, b) => b.createdAt - a.createdAt).map(quiz => (
-                                    <div key={quiz.id} className="saved-quiz-item">
-                                        <span className="quiz-label" onClick={() => handleLoad(quiz)}>
+                                    <div key={quiz.id} className="saved-quiz-item" onClick={() => handleLoad(quiz)} style={{ cursor: 'pointer' }}>
+                                        <span className="quiz-label">
                                             {quiz.name || `K${quiz.grade} - ${quiz.topic}`}
                                         </span>
-                                        <span className={`difficulty-badge ${quiz.difficulty}`}>{getDifficultyLabel(quiz.difficulty)}</span>
-                                        <button className="btn-delete-quiz" onClick={() => handleDelete(quiz)} title="Xóa">🗑️</button>
+                                        <div className="quiz-item-actions">
+                                            <span className={`difficulty-badge ${quiz.difficulty}`}>{getDifficultyLabel(quiz.difficulty)}</span>
+                                            <button
+                                                className="btn-copy-link"
+                                                onClick={(e) => { e.stopPropagation(); handleCopyLink(quiz.id) }}
+                                                title="Copy link"
+                                            >📋</button>
+                                            <button
+                                                className="btn-delete-quiz"
+                                                onClick={(e) => { e.stopPropagation(); handleDelete(quiz) }}
+                                                title="Xóa"
+                                            >🗑️</button>
+                                        </div>
                                     </div>
                                 ))
                             )}

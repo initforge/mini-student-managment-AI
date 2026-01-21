@@ -1,58 +1,62 @@
 import React, { useState, useEffect } from 'react'
 import { useToast } from '../contexts/ToastContext'
-import { getGeminiApiKey, saveGeminiApiKey, isGeminiConfigured, loadSettings, saveSettings } from '../services/settings'
-import { isSmsConfigured, saveSmsConfig } from '../services/sms'
+import { getGeminiApiKey, saveGeminiApiKey, isGeminiConfigured } from '../services/settings'
+import { isEmailConfigured, saveEmailConfig, initNotificationService } from '../services/notification'
 
 export default function SettingsModal({ onClose }) {
     const { showToast } = useToast()
     const [geminiKey, setGeminiKey] = useState('')
-    const [smsApiKey, setSmsApiKey] = useState('')
-    const [smsSecretKey, setSmsSecretKey] = useState('')
-    const [smsBrandName, setSmsBrandName] = useState('')
-    const [smsStatus, setSmsStatus] = useState(false)
+    const [showKeys, setShowKeys] = useState(true) // Default to visible
+    // EmailJS Config
+    const [emailjsServiceId, setEmailjsServiceId] = useState('')
+    const [emailjsTemplateId, setEmailjsTemplateId] = useState('')
+    const [emailjsPublicKey, setEmailjsPublicKey] = useState('')
 
     useEffect(() => {
         setGeminiKey(getGeminiApiKey() || '')
-        // Load SMS settings from localStorage
+        // Load settings from localStorage
         try {
             const saved = localStorage.getItem('eduassist_settings')
             if (saved) {
                 const settings = JSON.parse(saved)
-                setSmsApiKey(settings.smsApiKey || '')
-                setSmsSecretKey(settings.smsSecretKey || '')
-                setSmsBrandName(settings.smsBrandName || '')
+                setEmailjsServiceId(settings.emailjsServiceId || '')
+                setEmailjsTemplateId(settings.emailjsTemplateId || '')
+                setEmailjsPublicKey(settings.emailjsPublicKey || '')
             }
         } catch (err) {
-            console.error('Error loading SMS settings:', err)
+            console.error('Error loading settings:', err)
         }
-        setSmsStatus(isSmsConfigured())
     }, [])
 
     const handleSave = () => {
         // Save Gemini API key
         saveGeminiApiKey(geminiKey)
 
-        // Save SMS config
+        // Save all settings
         const newSettings = {
             geminiApiKey: geminiKey,
-            smsApiKey: smsApiKey,
-            smsSecretKey: smsSecretKey,
-            smsBrandName: smsBrandName || 'Baotrixemay'
+            emailjsServiceId: emailjsServiceId,
+            emailjsTemplateId: emailjsTemplateId,
+            emailjsPublicKey: emailjsPublicKey
         }
         try {
             localStorage.setItem('eduassist_settings', JSON.stringify(newSettings))
-            saveSmsConfig(smsApiKey, smsSecretKey, smsBrandName)
+            saveEmailConfig(emailjsPublicKey, emailjsServiceId, emailjsTemplateId)
+            // Re-initialize notification service after saving
+            initNotificationService()
         } catch (err) {
-            console.error('Error saving SMS config:', err)
+            console.error('Error saving config:', err)
         }
 
-        showToast('Đã lưu cài đặt', 'success')
+        showToast('Đã lưu cài đặt!', 'success')
         onClose()
     }
 
+    const emailConfigured = emailjsServiceId && emailjsTemplateId && emailjsPublicKey
+
     return (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={onClose}>
-            <div className="modal modal-settings" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal modal-settings" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px' }}>
                 <div className="modal-header">
                     <h3>
                         <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -63,8 +67,20 @@ export default function SettingsModal({ onClose }) {
                     </h3>
                     <button className="modal-close" onClick={onClose}>×</button>
                 </div>
-                <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
                     <form id="form-settings">
+                        {/* Toggle Show/Hide Keys */}
+                        <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => setShowKeys(!showKeys)}
+                                style={{ fontSize: '0.8rem', padding: '4px 12px' }}
+                            >
+                                {showKeys ? '🙈 Ẩn API Keys' : '👁️ Hiện API Keys'}
+                            </button>
+                        </div>
+
                         {/* Gemini API Section */}
                         <div className="form-group">
                             <label className="label-with-icon">
@@ -77,7 +93,7 @@ export default function SettingsModal({ onClose }) {
                                 <a href="https://ai.google.dev" target="_blank" rel="noreferrer" className="link-help">(Lấy key)</a>
                             </label>
                             <input
-                                type="password"
+                                type={showKeys ? "text" : "password"}
                                 placeholder="AIzaSy..."
                                 className="input-field"
                                 value={geminiKey}
@@ -85,54 +101,82 @@ export default function SettingsModal({ onClose }) {
                             />
                         </div>
 
-                        {/* SMS API Section */}
+                        {/* EmailJS Section */}
                         <div style={{ borderTop: '1px solid var(--border)', marginTop: '1rem', paddingTop: '1rem' }}>
-                            <h4 style={{ marginBottom: '0.75rem', color: 'var(--text)', fontSize: '0.95rem' }}>
-                                📱 Cấu hình SMS (eSMS.vn)
+                            <h4 style={{ marginBottom: '0.75rem', color: 'var(--text)', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                📧 Email Thông Báo (EmailJS)
+                                <span style={{
+                                    fontSize: '0.7rem',
+                                    background: emailConfigured ? '#10b981' : '#ef4444',
+                                    color: 'white',
+                                    padding: '2px 8px',
+                                    borderRadius: '10px'
+                                }}>
+                                    {emailConfigured ? '✓ Đã cấu hình' : 'Chưa cấu hình'}
+                                </span>
                             </h4>
+
+                            <small style={{
+                                color: 'var(--text-muted)',
+                                fontSize: '0.75rem',
+                                display: 'block',
+                                marginBottom: '0.75rem',
+                                background: 'var(--surface)',
+                                padding: '8px 12px',
+                                borderRadius: '6px',
+                                lineHeight: '1.5'
+                            }}>
+                                ✅ Miễn phí 200 email/tháng<br />
+                                ✅ Không cần GPKD/xác minh<br />
+                                ✅ Setup đơn giản, hoạt động ngay
+                            </small>
+
+                            <div className="form-group" style={{ marginBottom: '0.5rem' }}>
+                                <label className="label-with-icon">
+                                    Service ID
+                                    <a href="https://dashboard.emailjs.com/admin" target="_blank" rel="noreferrer" className="link-help">(Lấy từ EmailJS Dashboard)</a>
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="service_xxxxxxx"
+                                    className="input-field"
+                                    value={emailjsServiceId}
+                                    onChange={e => setEmailjsServiceId(e.target.value)}
+                                    style={{ borderColor: emailjsServiceId ? '#10b981' : 'var(--border)' }}
+                                />
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: '0.5rem' }}>
+                                <label className="label-with-icon">
+                                    Template ID
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="template_xxxxxxx"
+                                    className="input-field"
+                                    value={emailjsTemplateId}
+                                    onChange={e => setEmailjsTemplateId(e.target.value)}
+                                    style={{ borderColor: emailjsTemplateId ? '#10b981' : 'var(--border)' }}
+                                />
+                            </div>
 
                             <div className="form-group">
                                 <label className="label-with-icon">
-                                    API Key
-                                    <a href="https://account.esms.vn/Home/Index" target="_blank" rel="noreferrer" className="link-help">(Lấy key)</a>
+                                    Public Key
                                 </label>
                                 <input
-                                    type="password"
-                                    placeholder="Nhập API Key từ eSMS"
+                                    type={showKeys ? "text" : "password"}
+                                    placeholder="Nhập Public Key từ EmailJS"
                                     className="input-field"
-                                    value={smsApiKey}
-                                    onChange={e => setSmsApiKey(e.target.value)}
+                                    value={emailjsPublicKey}
+                                    onChange={e => setEmailjsPublicKey(e.target.value)}
+                                    style={{ borderColor: emailjsPublicKey ? '#10b981' : 'var(--border)' }}
                                 />
-                            </div>
-
-                            <div className="form-group">
-                                <label className="label-with-icon">Secret Key</label>
-                                <input
-                                    type="password"
-                                    placeholder="Nhập Secret Key từ eSMS"
-                                    className="input-field"
-                                    value={smsSecretKey}
-                                    onChange={e => setSmsSecretKey(e.target.value)}
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label className="label-with-icon">Brandname (tùy chọn)</label>
-                                <input
-                                    type="text"
-                                    placeholder="Baotrixemay"
-                                    className="input-field"
-                                    value={smsBrandName}
-                                    onChange={e => setSmsBrandName(e.target.value)}
-                                />
-                                <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                                    Để trống sẽ dùng "Baotrixemay". Brandname cần được đăng ký với eSMS.
-                                </small>
                             </div>
                         </div>
 
                         {/* Status Indicators */}
-                        <div className="form-group" style={{ marginTop: '1rem' }}>
+                        <div className="form-group" style={{ marginTop: '1.25rem' }}>
                             <label className="label-with-icon">
                                 <svg className="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -145,12 +189,12 @@ export default function SettingsModal({ onClose }) {
                                     <span>Firebase</span>
                                 </div>
                                 <div className="status-item">
-                                    <span className="status-dot" style={{ background: isGeminiConfigured() ? '#10b981' : '#ef4444' }}></span>
+                                    <span className="status-dot" style={{ background: geminiKey ? '#10b981' : '#ef4444' }}></span>
                                     <span>Gemini AI</span>
                                 </div>
                                 <div className="status-item">
-                                    <span className="status-dot" style={{ background: (smsApiKey && smsSecretKey) ? '#10b981' : '#ef4444' }}></span>
-                                    <span>SMS</span>
+                                    <span className="status-dot" style={{ background: emailConfigured ? '#10b981' : '#ef4444' }}></span>
+                                    <span>Email (EmailJS)</span>
                                 </div>
                             </div>
                         </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useToast } from '../../contexts/ToastContext'
+import { useDialog } from '../DialogProvider'
 import Modal from '../Modal'
 import {
     subscribeToStudents,
@@ -14,6 +15,7 @@ import {
 
 export default function StudentsTab() {
     const { showToast } = useToast()
+    const { confirm, prompt } = useDialog()
     const [students, setStudents] = useState([])
     const [classes, setClasses] = useState([])
     const [activeTab, setActiveTab] = useState('classes')
@@ -27,7 +29,7 @@ export default function StudentsTab() {
     const [editingStudent, setEditingStudent] = useState(null)
 
     // Form states
-    const [studentForm, setStudentForm] = useState({ name: '', class: '', zaloId: '' })
+    const [studentForm, setStudentForm] = useState({ name: '', class: '', parentEmail: '' })
     const [classForm, setClassForm] = useState({ name: '', teacher: '' })
 
     useEffect(() => {
@@ -56,11 +58,11 @@ export default function StudentsTab() {
             await addStudent({
                 name: studentForm.name,
                 class: studentForm.class,
-                zaloId: studentForm.zaloId || '',
+                parentEmail: studentForm.parentEmail || '',
                 avatar: Math.random() > 0.5 ? '👦' : '👧'
             })
             setShowAddStudent(false)
-            setStudentForm({ name: '', class: '', zaloId: '' })
+            setStudentForm({ name: '', class: '', parentEmail: '' })
             showToast(`Đã thêm học sinh ${studentForm.name}`, 'success')
         } catch (err) {
             showToast('Lỗi: ' + err.message, 'error')
@@ -77,13 +79,13 @@ export default function StudentsTab() {
             await updateStudent(editingStudent.id, {
                 name: studentForm.name,
                 class: studentForm.class,
-                zaloId: studentForm.zaloId || '',
+                parentEmail: studentForm.parentEmail || '',
                 avatar: editingStudent.avatar || '👤',
                 createdAt: editingStudent.createdAt || Date.now()
             })
             setShowEditStudent(false)
             setEditingStudent(null)
-            setStudentForm({ name: '', class: '', zaloId: '' })
+            setStudentForm({ name: '', class: '', parentEmail: '' })
             showToast(`Đã cập nhật học sinh ${studentForm.name}`, 'success')
         } catch (err) {
             showToast('Lỗi: ' + err.message, 'error')
@@ -92,7 +94,8 @@ export default function StudentsTab() {
 
     // CRUD: Delete Student
     const handleDeleteStudent = async (student) => {
-        if (!confirm(`Xác nhận xóa học sinh ${student.name}?`)) return
+        const confirmed = await confirm(`Xác nhận xóa học sinh ${student.name}?`)
+        if (!confirmed) return
         try {
             await deleteStudent(student.id)
             showToast(`Đã xóa học sinh ${student.name}`, 'success')
@@ -123,9 +126,9 @@ export default function StudentsTab() {
 
     // CRUD: Edit Class
     const handleEditClass = async (cls) => {
-        const newName = prompt('Tên lớp mới:', cls.name)
+        const newName = await prompt('Tên lớp mới:', cls.name)
         if (!newName || newName === cls.name) return
-        const newTeacher = prompt('Giáo viên chủ nhiệm:', cls.teacher || '')
+        const newTeacher = await prompt('Giáo viên chủ nhiệm:', cls.teacher || '')
         try {
             await updateClass(cls.id, { name: newName, teacher: newTeacher || '', createdAt: cls.createdAt || Date.now() })
             showToast(`Đã cập nhật lớp ${newName}`, 'success')
@@ -140,7 +143,8 @@ export default function StudentsTab() {
         const confirmMsg = studentsInClass.length > 0
             ? `Xác nhận xóa lớp ${cls.name} và ${studentsInClass.length} học sinh trong lớp?`
             : `Xác nhận xóa lớp ${cls.name}?`
-        if (!confirm(confirmMsg)) return
+        const confirmed = await confirm(confirmMsg)
+        if (!confirmed) return
         try {
             // Cascade delete students first
             for (const student of studentsInClass) {
@@ -158,7 +162,7 @@ export default function StudentsTab() {
 
     const openEditStudent = (student) => {
         setEditingStudent(student)
-        setStudentForm({ name: student.name, class: student.class, zaloId: student.zaloId || '' })
+        setStudentForm({ name: student.name, class: student.class, parentEmail: student.parentEmail || '' })
         setShowEditStudent(true)
     }
 
@@ -249,7 +253,7 @@ export default function StudentsTab() {
                                         <th style={{ width: '8%' }}>STT</th>
                                         <th style={{ width: '30%' }}>Họ và tên</th>
                                         <th style={{ width: '12%' }}>Lớp</th>
-                                        <th style={{ width: '30%' }}>SĐT Phụ huynh</th>
+                                        <th style={{ width: '30%' }}>Email Phụ huynh</th>
                                         <th style={{ width: '20%' }}>Thao tác</th>
                                     </tr>
                                 </thead>
@@ -264,7 +268,7 @@ export default function StudentsTab() {
                                                 </div>
                                             </td>
                                             <td className="text-center"><span className="class-badge">{student.class}</span></td>
-                                            <td className="zalo-cell">{student.zaloId || <span className="text-muted">—</span>}</td>
+                                            <td className="email-cell">{student.parentEmail || <span className="text-muted">—</span>}</td>
                                             <td className="text-center">
                                                 <div className="action-btns">
                                                     <button className="btn-icon-sm edit" onClick={() => openEditStudent(student)} title="Sửa">✏️</button>
@@ -299,8 +303,8 @@ export default function StudentsTab() {
                     </select>
                 </div>
                 <div className="form-group">
-                    <label>SĐT Phụ huynh</label>
-                    <input type="tel" placeholder="0901234567" value={studentForm.zaloId} onChange={e => setStudentForm({ ...studentForm, zaloId: e.target.value })} />
+                    <label>Email Phụ huynh</label>
+                    <input type="email" placeholder="phuhuynh@email.com" value={studentForm.parentEmail} onChange={e => setStudentForm({ ...studentForm, parentEmail: e.target.value })} />
                 </div>
                 <div className="modal-footer">
                     <button className="btn btn-secondary" onClick={() => setShowAddStudent(false)}>Hủy</button>
@@ -322,8 +326,8 @@ export default function StudentsTab() {
                     </select>
                 </div>
                 <div className="form-group">
-                    <label>SĐT Phụ huynh</label>
-                    <input type="tel" value={studentForm.zaloId} onChange={e => setStudentForm({ ...studentForm, zaloId: e.target.value })} />
+                    <label>Email Phụ huynh</label>
+                    <input type="email" value={studentForm.parentEmail} onChange={e => setStudentForm({ ...studentForm, parentEmail: e.target.value })} />
                 </div>
                 <div className="modal-footer">
                     <button className="btn btn-secondary" onClick={() => setShowEditStudent(false)}>Hủy</button>

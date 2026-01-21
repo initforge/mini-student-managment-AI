@@ -1465,6 +1465,13 @@
     cursor: pointer;
 }
 
+.quiz-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.saved-quiz-item .btn-copy-link,
 .saved-quiz-item .btn-delete-quiz {
     opacity: 0;
     background: none;
@@ -1475,8 +1482,13 @@
     transition: opacity 0.2s;
 }
 
+.saved-quiz-item:hover .btn-copy-link,
 .saved-quiz-item:hover .btn-delete-quiz {
     opacity: 1;
+}
+
+.saved-quiz-item .btn-copy-link:hover {
+    transform: scale(1.1);
 }
 
 .quiz-preview-area {

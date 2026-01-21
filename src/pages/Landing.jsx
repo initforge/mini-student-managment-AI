@@ -34,14 +34,11 @@ export default function Landing({ onEnter }) {
                         </h1>
                         <p className="hero-subtitle">
                             Hệ thống hỗ trợ giáo viên điểm danh, giao bài tập, tạo đề trắc nghiệm Toán
-                            và tự động thông báo cho phụ huynh qua SMS.
+                            và tự động thông báo cho phụ huynh qua Email.
                         </p>
                         <div className="hero-cta">
                             <button className="btn btn-primary btn-lg" onClick={onEnter}>
-                                <span>🎯</span> Bắt đầu ngay
-                            </button>
-                            <button className="btn btn-secondary btn-lg" onClick={onEnter}>
-                                <span>▶️</span> Xem demo
+                                <span>🎯</span> Truy cập hệ thống
                             </button>
                         </div>
                         <div className="hero-stats">
@@ -54,7 +51,7 @@ export default function Landing({ onEnter }) {
                                 <span className="stat-label">Trợ lý thông minh</span>
                             </div>
                             <div className="stat-item">
-                                <span className="stat-number">SMS</span>
+                                <span className="stat-number">Email</span>
                                 <span className="stat-label">Thông báo tự động</span>
                             </div>
                         </div>
@@ -99,7 +96,7 @@ export default function Landing({ onEnter }) {
                         <div className="feature-card">
                             <div className="feature-icon">👥</div>
                             <h3>Quản lý học sinh</h3>
-                            <p>Lưu trữ thông tin học sinh, lớp học và liên kết SĐT phụ huynh.</p>
+                            <p>Lưu trữ thông tin học sinh, lớp học và liên kết email phụ huynh.</p>
                         </div>
                         <div className="feature-card">
                             <div className="feature-icon">📋</div>
@@ -134,7 +131,7 @@ export default function Landing({ onEnter }) {
                             <ul className="about-list">
                                 <li>✅ Giao diện thân thiện, dễ sử dụng</li>
                                 <li>✅ AI hỗ trợ soạn nội dung</li>
-                                <li>✅ Tích hợp SMS thông báo</li>
+                                <li>✅ Tích hợp Email thông báo</li>
                                 <li>✅ Phù hợp khối 8 - 9</li>
                             </ul>
                         </div>
@@ -142,7 +139,7 @@ export default function Landing({ onEnter }) {
                             <div className="tech-stack">
                                 <div className="tech-item">🔥 Firebase</div>
                                 <div className="tech-item">🤖 Gemini AI</div>
-                                <div className="tech-item">📱 SMS</div>
+                                <div className="tech-item">📧 EmailJS</div>
                                 <div className="tech-item">⚡ React</div>
                             </div>
                         </div>

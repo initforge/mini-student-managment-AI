@@ -19,11 +19,11 @@ export default function Sidebar({ activeTab, onTabChange, onLogout }) {
 
             <div className="user-profile">
                 <div className="avatar">
-                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=teacher" alt="Teacher Avatar" />
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=admin" alt="Admin Avatar" />
                 </div>
                 <div className="user-info">
-                    <span className="user-name">Giáo Viên</span>
-                    <span className="user-role">Chủ nhiệm</span>
+                    <span className="user-name">Admin</span>
+                    <span className="user-role">Hệ thống</span>
                 </div>
             </div>
 

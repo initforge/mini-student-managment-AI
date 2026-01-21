@@ -2,7 +2,7 @@
 import { getStudents } from './students.js';
 import { showToast } from '../utils/toast.js';
 import { generateAbsenceNotice } from '../services/ai.js';
-import { sendAbsenceNotification, isSmsConfigured } from '../services/sms.js';
+import { sendAbsenceNotification, isEmailConfigured } from '../services/notification.js';
 import {
   getAttendance as fetchAttendance,
   saveAttendance as saveAttendanceToDb,
@@ -217,7 +217,7 @@ async function saveAttendance() {
     // Find absent students
     const absentStudents = students.filter(s => dayData[s.id] === 'absent');
 
-    if (absentStudents.length > 0 && isSmsConfigured()) {
+    if (absentStudents.length > 0 && isEmailConfigured()) {
       showToast(`Đang gửi SMS cho ${absentStudents.length} phụ huynh...`, 'info');
 
       let successCount = 0;
@@ -248,7 +248,7 @@ async function saveAttendance() {
       if (failCount > 0) {
         showToast(`${failCount} tin nhắn thất bại`, 'warning');
       }
-    } else if (absentStudents.length > 0 && !isSmsConfigured()) {
+    } else if (absentStudents.length > 0 && !isEmailConfigured()) {
       showToast('Điểm danh đã lưu! (Cấu hình SMS trong Cài đặt để gửi thông báo)', 'info');
     } else {
       showToast('Điểm danh đã được lưu!', 'success');

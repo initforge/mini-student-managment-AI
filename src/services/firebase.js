@@ -17,7 +17,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-// Export app for other services (SMS, etc.)
+// Export app for other services (Email, etc.)
 export function getApp() {
     return app;
 }
@@ -37,7 +37,7 @@ export async function addStudent(student) {
     await set(newRef, {
         name: student.name,
         class: student.class,
-        zaloId: student.zaloId || '',
+        parentEmail: student.parentEmail || '',
         avatar: student.avatar || '👤',
         createdAt: Date.now()
     });

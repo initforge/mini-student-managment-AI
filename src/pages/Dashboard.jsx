@@ -7,7 +7,7 @@ import HomeworkTab from '../components/tabs/HomeworkTab'
 import QuizTab from '../components/tabs/QuizTab'
 import SettingsModal from '../components/SettingsModal'
 import Chatbot from '../components/Chatbot'
-import { initSmsService } from '../services/sms'
+import { initNotificationService } from '../services/notification'
 import { getApp } from '../services/firebase'
 
 const tabs = ['students', 'attendance', 'homework', 'quiz']
@@ -17,11 +17,11 @@ export default function Dashboard({ onLogout }) {
     const [showSettings, setShowSettings] = useState(false)
 
     useEffect(() => {
-        // Initialize SMS service
+        // Initialize Email notification service
         try {
-            initSmsService(getApp())
+            initNotificationService(getApp())
         } catch (err) {
-            console.warn('SMS service init failed:', err)
+            console.warn('Email service init failed:', err)
         }
 
         // Handle hash routing
