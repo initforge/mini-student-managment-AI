@@ -56,7 +56,7 @@ export default function AttendanceTab() {
         }
     }
 
-    const presentCount = students.filter(s => attendance[s.id] !== 'absent').length
+    const presentCount = students.filter(s => attendance[s.id] === 'present').length
     const absentCount = students.filter(s => attendance[s.id] === 'absent').length
 
     // Render charts when data changes
