@@ -53,6 +53,18 @@ export function isGeminiConfigured() {
     return settings.geminiApiKey && settings.geminiApiKey.length > 10;
 }
 
+// Save Gemini API key
+export function saveGeminiApiKey(apiKey) {
+    settings.geminiApiKey = apiKey || '';
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+        return true;
+    } catch (err) {
+        console.error('Error saving Gemini API key:', err);
+        return false;
+    }
+}
+
 // Initialize settings UI
 export function initSettings() {
     loadSettings();
