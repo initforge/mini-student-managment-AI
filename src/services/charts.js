@@ -12,8 +12,6 @@ export function createAttendancePieChart(canvasId, presentCount, absentCount) {
         existingChart.destroy();
     }
 
-    console.log('[Chart] Creating pie chart with Present:', presentCount, 'Absent:', absentCount);
-
     const ctx = canvas.getContext('2d');
     const chart = new Chart(ctx, {
         type: 'doughnut',
@@ -131,7 +129,6 @@ export function generateWeekData(attendanceByDate, studentCount) {
         const dayLabel = dayNames[date.getDay()];
         const dateNum = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-        // Format: "T2 20/01"
         labels.push(`${dayLabel} ${dateNum}`);
 
         const dayData = attendanceByDate[dateKey] || {};
@@ -144,6 +141,7 @@ export function generateWeekData(attendanceByDate, studentCount) {
         });
 
         present.push(presentCount);
+
         absent.push(absentCount);
     }
 

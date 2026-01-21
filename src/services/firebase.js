@@ -1,6 +1,6 @@
 // Firebase Configuration
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set, get, push, remove, onValue } from 'firebase/database';
+import { getDatabase, ref, set, get, push, remove, onValue, update } from 'firebase/database';
 
 const firebaseConfig = {
     apiKey: "AIzaSyAdZ6TrhlQ656ydInUNxtuwhodO9bg9oow",
@@ -49,7 +49,27 @@ export async function updateStudent(id, updates) {
 }
 
 export async function deleteStudent(id) {
+    // Delete student
     await remove(ref(database, `students/${id}`));
+
+    // Cascade delete: Remove attendance records for this student across all dates
+    const attendanceSnapshot = await get(ref(database, 'attendance'));
+    if (attendanceSnapshot.exists()) {
+        const attendance = attendanceSnapshot.val();
+        const updates = {};
+
+        // Find and remove this student's attendance from all dates
+        Object.keys(attendance).forEach(dateKey => {
+            if (attendance[dateKey] && attendance[dateKey][id]) {
+                updates[`attendance/${dateKey}/${id}`] = null;
+            }
+        });
+
+        // Apply all deletions at once
+        if (Object.keys(updates).length > 0) {
+            await update(ref(database), updates);
+        }
+    }
 }
 
 export function subscribeToStudents(callback) {

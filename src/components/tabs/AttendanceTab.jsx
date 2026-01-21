@@ -63,8 +63,6 @@ export default function AttendanceTab() {
     useEffect(() => {
         if (students.length > 0) {
             loadWeeklyData()
-            // Render pie chart with debug
-            console.log('[Chart Debug] Present:', presentCount, 'Absent:', absentCount)
             setTimeout(() => {
                 createAttendancePieChart('today-chart', presentCount, absentCount)
             }, 100)
