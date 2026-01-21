@@ -1,7 +1,7 @@
 // AI Service - Gemini API integration with mock fallback
 import { getGeminiApiKey, isGeminiConfigured } from './settings.js';
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent';
 
 // Generate absence notice for parent notification
 export async function generateAbsenceNotice(studentName, date, className) {
@@ -91,10 +91,12 @@ const defaultQuestions = [
 
 // Generate math quiz questions
 export async function generateMathQuestions(grade, topic, difficulty, count) {
-    // Try Gemini API first
-    if (isGeminiConfigured()) {
-        try {
-            const prompt = `Tạo ${count} câu hỏi trắc nghiệm Toán lớp ${grade}, chủ đề: ${topic}, độ khó: ${difficulty}.
+    // ONLY use Gemini API - NO fallback mock data
+    if (!isGeminiConfigured()) {
+        throw new Error('Vui lòng cấu hình Gemini API Key trong Cài đặt');
+    }
+
+    const prompt = `Tạo ${count} câu hỏi trắc nghiệm Toán lớp ${grade}, chủ đề: ${topic}, độ khó: ${difficulty}.
 
 Định dạng JSON array:
 [
@@ -105,29 +107,49 @@ export async function generateMathQuestions(grade, topic, difficulty, count) {
   }
 ]
 
-Chỉ trả về JSON, không giải thích.`;
+Chỉ trả về JSON array, không giải thích thêm.`;
 
-            const response = await callGeminiAPI(prompt);
-            const parsed = JSON.parse(response.replace(/```json?|```/g, '').trim());
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                return parsed;
+    const response = await callGeminiAPI(prompt);
+
+    // Parse JSON response
+    try {
+        const cleaned = response.replace(/```json?|```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+            throw new Error('API không trả về câu hỏi hợp lệ');
+        }
+
+        // Validate structure
+        for (const q of parsed) {
+            if (!q.text || !Array.isArray(q.options) || q.options.length !== 4 || typeof q.correctIndex !== 'number') {
+                throw new Error('Định dạng câu hỏi không hợp lệ');
             }
+        }
+
+        return parsed;
+    } catch (err) {
+        console.error('Failed to parse Gemini response:', response);
+        throw new Error('Không thể phân tích câu trả lời từ Gemini API');
+    }
+}
+
+// Generate quiz name/title
+export async function generateQuizName(grade, topic, difficulty, questionCount) {
+    if (isGeminiConfigured()) {
+        try {
+            const prompt = `Tạo một tên ngắn gọn, hấp dẫn cho bài kiểm tra Toán lớp ${grade}, chủ đề ${topic}, độ khó ${difficulty}, ${questionCount} câu. 
+Chỉ trả về tên bài kiểm tra (tối đa 50 ký tự), không giải thích.`;
+
+            return await callGeminiAPI(prompt);
         } catch (err) {
-            console.error('Gemini quiz error:', err);
+            console.error('Gemini name generation error:', err);
         }
     }
 
-    // Fallback to question bank
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const pool = questionBank[topic] || defaultQuestions;
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    const result = [];
-
-    for (let i = 0; i < count; i++) {
-        result.push(shuffled[i % shuffled.length]);
-    }
-
-    return result;
+    // Fallback pattern
+    const difficultyMap = { easy: 'Dễ', medium: 'TB', hard: 'Khó' };
+    return `${topic} (${difficultyMap[difficulty] || difficulty}) - ${questionCount} câu`;
 }
 
 // Chat with AI assistant
@@ -175,9 +197,18 @@ async function callGeminiAPI(prompt) {
     });
 
     if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Gemini API error response:', errorText);
+        throw new Error(`API error: ${response.status} - ${errorText.substring(0, 100)}`);
     }
 
     const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+        console.error('No text in Gemini response:', JSON.stringify(data));
+        throw new Error('No response from Gemini');
+    }
+
+    return text;
 }

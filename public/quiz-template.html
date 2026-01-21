@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bài Kiểm Tra Trực Tuyến</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 28px;
+        }
+
+        .meta {
+            color: #666;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+
+        .question {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .question-text {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #333;
+        }
+
+        .option {
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .option.selected {
+            border-color: #667eea;
+            background: #e8eeff;
+        }
+
+        .option.correct {
+            border-color: #10b981;
+            background: #d1fae5;
+        }
+
+        .option.incorrect {
+            border-color: #ef4444;
+            background: #fee2e2;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .score {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+        }
+
+        .result-label {
+            font-size: 20px;
+            color: #666;
+        }
+
+        #retry-btn {
+            margin-top: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div id="quiz-container">
+            <h1 id="quiz-title">Loading...</h1>
+            <div class="meta" id="quiz-meta"></div>
+            <div id="questions-container"></div>
+            <button id="submit-btn" class="btn" onclick="submitQuiz()">Nộp bài</button>
+        </div>
+
+        <div id="result-container" class="hidden">
+            <div class="result">
+                <h2>Kết quả</h2>
+                <div class="score" id="score-display">0/0</div>
+                <div class="result-label">Số câu đúng</div>
+                <button id="retry-btn" class="btn" onclick="retryQuiz()">Làm lại</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        // Get quiz ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const quizId = urlParams.get('id');
+
+        if (!quizId) {
+            document.body.innerHTML = '<div class="container"><h1>Lỗi: Không tìm thấy ID bài kiểm tra</h1></div>';
+        }
+
+        // Firebase config - REPLACE WITH YOUR CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyCnuxjCoBEukVy0BpK13UHMUuHoCh7Q0tw",
+            authDomain: "mini-student-chat.firebaseapp.com",
+            databaseURL: "https://mini-student-chat-default-rtdb.firebaseio.com",
+            projectId: "mini-student-chat",
+            storageBucket: "mini-student-chat.firebasestorage.app",
+            messagingSenderId: "981039830132",
+            appId: "1:981039830132:web:db6be38f89bc25a734398d"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        let quizData = null;
+        let selectedAnswers = [];
+
+        // Load quiz from Firebase
+        async function loadQuiz() {
+            try {
+                const snapshot = await get(ref(database, `quizzes/${quizId}`));
+                if (!snapshot.exists()) {
+                    throw new Error('Quiz not found');
+                }
+
+                quizData = snapshot.val();
+                renderQuiz();
+            } catch (err) {
+                console.error('Error loading quiz:', err);
+                document.getElementById('quiz-container').innerHTML =
+                    '<h1>Lỗi: Không thể tải bài kiểm tra</h1><p>' + err.message + '</p>';
+            }
+        }
+
+        function renderQuiz() {
+            document.getElementById('quiz-title').textContent = quizData.name || 'Bài Kiểm Tra';
+            document.getElementById('quiz-meta').textContent =
+                `Khối ${quizData.grade} • ${quizData.count} câu hỏi`;
+
+            const container = document.getElementById('questions-container');
+            selectedAnswers = new Array(quizData.questions.length).fill(-1);
+
+            container.innerHTML = quizData.questions.map((q, qIndex) => `
+                <div class="question" id="question-${qIndex}">
+                    <div class="question-text">${qIndex + 1}. ${q.text}</div>
+                    ${q.options.map((opt, optIndex) => `
+                        <div class="option" onclick="selectOption(${qIndex}, ${optIndex})">
+                            ${String.fromCharCode(65 + optIndex)}. ${opt}
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('');
+        }
+
+        window.selectOption = function (qIndex, optIndex) {
+            selectedAnswers[qIndex] = optIndex;
+
+            // Update UI
+            const questionDiv = document.getElementById(`question-${qIndex}`);
+            questionDiv.querySelectorAll('.option').forEach((opt, i) => {
+                opt.classList.toggle('selected', i === optIndex);
+            });
+        };
+
+        window.submitQuiz = function () {
+            if (selectedAnswers.includes(-1)) {
+                alert('Vui lòng trả lời tất cả các câu hỏi!');
+                return;
+            }
+
+            // Calculate score
+            let correct = 0;
+            quizData.questions.forEach((q, i) => {
+                if (selectedAnswers[i] === q.correctIndex) {
+                    correct++;
+                }
+            });
+
+            // Show results
+            document.getElementById('score-display').textContent = `${correct}/${quizData.questions.length}`;
+            document.getElementById('quiz-container').classList.add('hidden');
+            document.getElementById('result-container').classList.remove('hidden');
+
+            // Mark correct/incorrect
+            quizData.questions.forEach((q, qIndex) => {
+                const questionDiv = document.getElementById(`question-${qIndex}`);
+                questionDiv.querySelectorAll('.option').forEach((opt, optIndex) => {
+                    if (optIndex === q.correctIndex) {
+                        opt.classList.add('correct');
+                    } else if (optIndex === selectedAnswers[qIndex]) {
+                        opt.classList.add('incorrect');
+                    }
+                });
+            });
+        };
+
+        window.retryQuiz = function () {
+            location.reload();
+        };
+
+        loadQuiz();
+    </script>
+</body>
+
+</html>

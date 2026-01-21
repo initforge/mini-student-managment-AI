@@ -1,147 +1,84 @@
-// SMS Service - eSMS.vn API Integration
-// Docs: https://esms.vn/
+// SMS Service - Uses Firebase Cloud Functions for secure API calls
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { showToast } from '../utils/toast.js';
 
-const ESMS_API_URL = 'https://rest.esms.vn/MainService.svc/json/SendMultipleMessage_V4_get';
+let functions = null;
 
-// Get SMS config from localStorage
-function getSmsConfig() {
-    const config = localStorage.getItem('eduassist_sms_config');
-    return config ? JSON.parse(config) : null;
+// Initialize Firebase Functions
+export function initSmsService(app) {
+    functions = getFunctions(app, 'us-central1');
 }
 
-// Save SMS config
-export function saveSmsConfig(apiKey, secretKey, brandName = '') {
-    const config = { apiKey, secretKey, brandName };
-    localStorage.setItem('eduassist_sms_config', JSON.stringify(config));
-    return true;
-}
-
-// Check if SMS is configured
+// Check if SMS is configured (always true if using Cloud Functions)
 export function isSmsConfigured() {
-    const config = getSmsConfig();
-    return config && config.apiKey && config.secretKey;
+    return functions !== null;
 }
 
-// Format phone number to Vietnam format
-function formatPhoneNumber(phone) {
-    let cleaned = phone.replace(/\D/g, '');
-
-    // Convert 0xxx to 84xxx
-    if (cleaned.startsWith('0')) {
-        cleaned = '84' + cleaned.substring(1);
-    }
-
-    // Add 84 if not present
-    if (!cleaned.startsWith('84')) {
-        cleaned = '84' + cleaned;
-    }
-
-    return cleaned;
+// Legacy config functions - not needed with Cloud Functions but kept for compatibility
+export function getSmsConfig() {
+    return { configured: true };
 }
 
-// Send SMS via eSMS API
+export function saveSmsConfig() {
+    // Config is now stored in Firebase Functions environment
+    console.log('SMS config is managed via Firebase Functions environment');
+}
+
+// Send SMS via Cloud Function
 export async function sendSMS(phone, message) {
-    const config = getSmsConfig();
-
-    if (!config) {
-        throw new Error('SMS chưa được cấu hình. Vui lòng thêm API Key trong Cài đặt.');
+    if (!functions) {
+        throw new Error('SMS service not initialized');
     }
-
-    const formattedPhone = formatPhoneNumber(phone);
-
-    // eSMS API parameters
-    const params = new URLSearchParams({
-        ApiKey: config.apiKey,
-        SecretKey: config.secretKey,
-        Phone: formattedPhone,
-        Content: message,
-        SmsType: config.brandName ? '2' : '4', // 2 = Brandname, 4 = Đầu số cố định
-        Brandname: config.brandName || '',
-        IsUnicode: '1', // Support Vietnamese
-        Sandbox: '0', // 0 = production, 1 = test
-    });
 
     try {
-        const response = await fetch(`${ESMS_API_URL}?${params.toString()}`);
-        const data = await response.json();
-
-        if (data.CodeResult === '100') {
-            console.log('SMS sent successfully:', data);
-            return { success: true, smsId: data.SMSID };
-        } else {
-            console.error('SMS error:', data);
-            throw new Error(getErrorMessage(data.CodeResult));
-        }
+        const sendSMSFn = httpsCallable(functions, 'sendSMS');
+        const result = await sendSMSFn({ phone, message });
+        console.log('SMS sent via Cloud Function:', result.data);
+        return result.data;
     } catch (error) {
-        console.error('Failed to send SMS:', error);
-        throw error;
+        console.error('SMS Cloud Function error:', error);
+        throw new Error(error.message || 'Lỗi gửi SMS');
     }
-}
-
-// Send SMS to multiple recipients
-export async function sendBulkSMS(phones, message) {
-    const results = [];
-
-    for (const phone of phones) {
-        try {
-            const result = await sendSMS(phone, message);
-            results.push({ phone, success: true, ...result });
-        } catch (error) {
-            results.push({ phone, success: false, error: error.message });
-        }
-    }
-
-    return results;
 }
 
 // Send absence notification
 export async function sendAbsenceNotification(studentName, parentPhone, date, reason = '') {
-    const message = `[EduAssist] Thông báo: Học sinh ${studentName} vắng mặt ngày ${date}.${reason ? ` Lý do: ${reason}` : ''} Vui lòng liên hệ giáo viên nếu cần.`;
+    if (!functions) {
+        throw new Error('SMS service not initialized');
+    }
 
-    return sendSMS(parentPhone, message);
+    try {
+        const sendFn = httpsCallable(functions, 'sendAbsenceNotification');
+        const result = await sendFn({ studentName, parentPhone, date, reason });
+        return result.data;
+    } catch (error) {
+        console.error('Absence notification error:', error);
+        throw error;
+    }
 }
 
 // Send homework reminder
 export async function sendHomeworkReminder(studentName, parentPhone, subject, deadline) {
-    const message = `[EduAssist] Nhắc nhở: ${studentName} có bài tập môn ${subject}, hạn nộp: ${deadline}. Vui lòng nhắc con hoàn thành.`;
-
-    return sendSMS(parentPhone, message);
-}
-
-// Send custom notification
-export async function sendCustomNotification(parentPhone, content) {
-    const message = `[EduAssist] ${content}`;
-    return sendSMS(parentPhone, message);
-}
-
-// Error code mapping
-function getErrorMessage(code) {
-    const errors = {
-        '99': 'Lỗi không xác định',
-        '100': 'Gửi thành công',
-        '101': 'Sai thông tin xác thực',
-        '102': 'Tài khoản bị khóa',
-        '103': 'Số dư không đủ',
-        '104': 'Brandname không tồn tại',
-        '118': 'Số điện thoại sai định dạng',
-        '119': 'Nội dung có ký tự không hợp lệ',
-    };
-    return errors[code] || `Lỗi: ${code}`;
-}
-
-// Check account balance
-export async function checkBalance() {
-    const config = getSmsConfig();
-    if (!config) return null;
-
-    const url = `https://rest.esms.vn/MainService.svc/json/GetBalance/${config.apiKey}/${config.secretKey}`;
+    if (!functions) {
+        throw new Error('SMS service not initialized');
+    }
 
     try {
-        const response = await fetch(url);
-        const data = await response.json();
-        return data.Balance || 0;
+        const sendFn = httpsCallable(functions, 'sendHomeworkReminder');
+        const result = await sendFn({ studentName, parentPhone, subject, deadline });
+        return result.data;
     } catch (error) {
-        console.error('Failed to check balance:', error);
-        return null;
+        console.error('Homework reminder error:', error);
+        throw error;
     }
+}
+
+// Format phone number for display
+export function formatPhoneNumber(phone) {
+    if (!phone) return '';
+    let cleaned = phone.replace(/[^\d]/g, '');
+    if (cleaned.startsWith('84')) {
+        cleaned = '0' + cleaned.substring(2);
+    }
+    return cleaned;
 }

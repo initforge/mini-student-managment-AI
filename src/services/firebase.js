@@ -17,6 +17,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
+// Export app for other services (SMS, etc.)
+export function getApp() {
+    return app;
+}
+
 // ================== STUDENTS ==================
 export async function getStudents() {
     const snapshot = await get(ref(database, 'students'));
@@ -57,6 +62,46 @@ export function subscribeToStudents(callback) {
             callback([]);
         }
     });
+}
+
+// ================== CLASSES ==================
+export async function getClasses() {
+    const snapshot = await get(ref(database, 'classes'));
+    if (snapshot.exists()) {
+        const data = snapshot.val();
+        return Object.keys(data).map(key => ({ id: key, ...data[key] }));
+    }
+    return [];
+}
+
+export function subscribeToClasses(callback) {
+    return onValue(ref(database, 'classes'), (snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            const classes = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+            callback(classes);
+        } else {
+            callback([]);
+        }
+    });
+}
+
+export async function addClass(classData) {
+    const newRef = push(ref(database, 'classes'));
+    await set(newRef, {
+        name: classData.name,
+        teacher: classData.teacher || '',
+        createdAt: Date.now()
+    });
+    return newRef.key;
+}
+
+export async function updateClass(id, updates) {
+    await set(ref(database, `classes/${id}`), updates);
+}
+
+export async function deleteClass(id) {
+    await remove(ref(database, `classes/${id}`));
 }
 
 // ================== ATTENDANCE ==================
@@ -148,6 +193,10 @@ export async function getQuizzes() {
         return Object.keys(data).map(key => ({ id: key, ...data[key] }));
     }
     return [];
+}
+
+export async function deleteQuiz(id) {
+    await remove(ref(database, `quizzes/${id}`));
 }
 
 // ================== HELPERS ==================

@@ -6,7 +6,11 @@ import {
   addStudent as addStudentToDb,
   updateStudent as updateStudentInDb,
   deleteStudent as deleteStudentFromDb,
-  subscribeToStudents
+  subscribeToStudents,
+  subscribeToClasses,
+  addClass as addClassToDb,
+  deleteClass as deleteClassFromDb,
+  updateClass as updateClassInDb
 } from '../services/firebase.js';
 import { exportStudentsToPDF } from '../services/export.js';
 
@@ -14,14 +18,77 @@ import { exportStudentsToPDF } from '../services/export.js';
 let students = [];
 let classes = [];
 let unsubscribe = null;
+let unsubscribeClasses = null;
 
-// Default classes - will be stored in localStorage
-const DEFAULT_CLASSES = [
-  { id: '8A', name: '8A', teacher: '' },
-  { id: '8B', name: '8B', teacher: '' },
-  { id: '9A', name: '9A', teacher: '' },
-  { id: '9B', name: '9B', teacher: '' }
-];
+// ===== REGISTER WINDOW FUNCTIONS IMMEDIATELY =====
+// These must be available when onclick handlers are parsed
+window.selectClass = function (className) {
+  document.querySelector('.mini-tab[data-mini-tab="students"]')?.click();
+  setTimeout(() => {
+    document.getElementById('filter-class').value = className;
+    renderStudents('', className);
+  }, 100);
+};
+
+window.editClass = async function (id) {
+  const classObj = classes.find(c => c.id === id);
+  if (!classObj) {
+    showToast('Không tìm thấy lớp', 'error');
+    return;
+  }
+
+  const newName = prompt('Tên lớp mới:', classObj.name);
+  if (!newName || newName.trim() === '') return;
+
+  const newTeacher = prompt('Giáo viên chủ nhiệm:', classObj.teacher || '');
+
+  try {
+    await updateClassInDb(id, {
+      name: newName.trim(),
+      teacher: newTeacher?.trim() || '',
+      createdAt: classObj.createdAt || Date.now()
+    });
+    showToast(`Đã cập nhật lớp ${newName}`, 'success');
+  } catch (err) {
+    console.error('Error updating class:', err);
+    showToast('Lỗi: ' + err.message, 'error');
+  }
+};
+
+window.deleteClass = async function (id) {
+  const classObj = classes.find(c => c.id === id);
+  if (!classObj) {
+    showToast('Không tìm thấy lớp', 'error');
+    return;
+  }
+
+  const studentsInClass = students.filter(s => s.class === classObj.name);
+  const studentCount = studentsInClass.length;
+
+  const confirmMsg = studentCount > 0
+    ? `Xác nhận xóa lớp ${classObj.name} và ${studentCount} học sinh trong lớp?`
+    : `Xác nhận xóa lớp ${classObj.name}?`;
+
+  if (confirm(confirmMsg)) {
+    try {
+      // Cascade delete: remove all students in this class first
+      for (const student of studentsInClass) {
+        await deleteStudentFromDb(student.id);
+      }
+      // Then delete the class
+      await deleteClassFromDb(id);
+      const successMsg = studentCount > 0
+        ? `Đã xóa lớp ${classObj.name} và ${studentCount} học sinh`
+        : `Đã xóa lớp ${classObj.name}`;
+      showToast(successMsg, 'success');
+    } catch (err) {
+      console.error('Error deleting class:', err);
+      showToast('Lỗi: ' + err.message, 'error');
+    }
+  }
+};
+
+console.log('✅ Class management functions registered: editClass, deleteClass, selectClass');
 
 export function initStudents() {
   initModals();
@@ -32,15 +99,12 @@ export function initStudents() {
 }
 
 function loadClasses() {
-  const saved = localStorage.getItem('eduassist_classes');
-  classes = saved ? JSON.parse(saved) : DEFAULT_CLASSES;
-  renderClasses();
-  populateClassDropdowns();
-}
-
-function saveClasses() {
-  localStorage.setItem('eduassist_classes', JSON.stringify(classes));
-  populateClassDropdowns();
+  // Subscribe to Firebase classes
+  unsubscribeClasses = subscribeToClasses((data) => {
+    classes = data || [];
+    renderClasses();
+    populateClassDropdowns();
+  });
 }
 
 function setupMiniTabs() {
@@ -145,10 +209,10 @@ function renderClasses() {
   container.innerHTML = classes.map(c => {
     const studentCount = students.filter(s => s.class === c.name).length;
     return `
-      <div class="class-card" onclick="selectClass('${c.name}')">
+      <div class="class-card" onclick="window.selectClass('${c.name}')">
         <div class="class-actions">
-          <button class="btn-icon-sm edit" onclick="event.stopPropagation(); editClass('${c.id}')" title="Sửa">✏️</button>
-          <button class="btn-icon-sm delete" onclick="event.stopPropagation(); deleteClass('${c.id}')" title="Xóa">🗑️</button>
+          <button class="btn-icon-sm edit" onclick="event.stopPropagation(); window.editClass('${c.id}')" title="Sửa">✏️</button>
+          <button class="btn-icon-sm delete" onclick="event.stopPropagation(); window.deleteClass('${c.id}')" title="Xóa">🗑️</button>
         </div>
         <div class="class-name">Lớp ${c.name}</div>
         <div class="class-meta">
@@ -160,7 +224,7 @@ function renderClasses() {
   }).join('');
 }
 
-function saveClass() {
+async function saveClass() {
   const name = document.getElementById('class-name')?.value?.trim();
   const teacher = document.getElementById('class-teacher')?.value?.trim();
 
@@ -174,16 +238,26 @@ function saveClass() {
     return;
   }
 
-  classes.push({
-    id: name.replace(/\s/g, ''),
-    name: name,
-    teacher: teacher || ''
-  });
+  const btn = document.getElementById('btn-save-class');
+  btn.disabled = true;
+  btn.textContent = 'Đang lưu...';
 
-  saveClasses();
-  renderClasses();
-  closeModal('modal-add-class');
-  showToast(`Đã thêm lớp ${name}`, 'success');
+  try {
+    await addClassToDb({
+      name: name,
+      teacher: teacher || ''
+    });
+
+    closeModal('modal-add-class');
+    document.getElementById('form-add-class')?.reset();
+    showToast(`Đã thêm lớp ${name}`, 'success');
+  } catch (err) {
+    console.error('Error adding class:', err);
+    showToast('Lỗi: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Lưu';
+  }
 }
 
 window.selectClass = function (className) {
@@ -195,23 +269,38 @@ window.selectClass = function (className) {
   }, 100);
 };
 
-window.deleteClass = function (id) {
+// Duplicate removed - function defined above at line 58
+
+window.editClass = function (id) {
   const classObj = classes.find(c => c.id === id);
   if (!classObj) return;
 
-  const studentCount = students.filter(s => s.class === classObj.name).length;
-  if (studentCount > 0) {
-    showToast(`Không thể xóa lớp có ${studentCount} học sinh`, 'error');
-    return;
-  }
+  // For now, use prompt - can be upgraded to modal later
+  const newName = prompt('Tên lớp mới:', classObj.name);
+  if (!newName || newName === classObj.name) return;
 
-  if (confirm(`Xác nhận xóa lớp ${classObj.name}?`)) {
-    classes = classes.filter(c => c.id !== id);
-    saveClasses();
-    renderClasses();
-    showToast(`Đã xóa lớp ${classObj.name}`, 'success');
-  }
+  const newTeacher = prompt('Giáo viên chủ nhiệm:', classObj.teacher || '');
+
+  updateClassData(id, newName, newTeacher);
 };
+
+async function updateClassData(id, newName, newTeacher) {
+  const classObj = classes.find(c => c.id === id);
+  if (!classObj) return;
+
+  try {
+    const { updateClass } = await import('../services/firebase.js');
+    await updateClass(id, {
+      name: newName,
+      teacher: newTeacher || '',
+      createdAt: classObj.createdAt || Date.now()
+    });
+    showToast(`Đã cập nhật lớp ${newName}`, 'success');
+  } catch (err) {
+    console.error('Error updating class:', err);
+    showToast('Lỗi: ' + err.message, 'error');
+  }
+}
 
 // ===== STUDENT MANAGEMENT =====
 function renderStudents(search = '', filterClass = '') {
@@ -268,8 +357,8 @@ function renderStudents(search = '', filterClass = '') {
             <td class="zalo-cell">${student.zaloId || '<span class="text-muted">—</span>'}</td>
             <td class="text-center">
               <div class="action-btns">
-                <button class="btn-icon-sm edit" onclick="editStudent('${student.id}')" title="Sửa">✏️</button>
-                <button class="btn-icon-sm delete" onclick="deleteStudent('${student.id}')" title="Xóa">🗑️</button>
+                <button class="btn-icon-sm edit" onclick="window.editStudent('${student.id}')" title="Sửa">✏️</button>
+                <button class="btn-icon-sm delete" onclick="window.deleteStudent('${student.id}')" title="Xóa">🗑️</button>
               </div>
             </td>
           </tr>

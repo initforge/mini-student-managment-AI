@@ -2,7 +2,7 @@
 import { openModal, closeModal } from '../utils/modal.js';
 import { showToast } from '../utils/toast.js';
 import { sendHomeworkReminder, isSmsConfigured } from '../services/sms.js';
-import { getStudentsByClass } from './students.js';
+import { getStudentsByClass, getClasses } from './students.js';
 import {
     getHomework as fetchHomework,
     addHomework as addHomeworkToDb,
@@ -16,6 +16,20 @@ export function initHomework() {
     loadHomework();
     setupEventListeners();
     setDefaultDeadline();
+    populateHomeworkClassDropdown();
+}
+
+// Populate class dropdown from Firebase classes
+function populateHomeworkClassDropdown() {
+    const select = document.getElementById('homework-class');
+    if (!select) return;
+
+    const classes = getClasses();
+    select.innerHTML = '<option value="">Chọn lớp</option>';
+
+    classes.forEach(c => {
+        select.innerHTML += `<option value="${c.name}">Lớp ${c.name}</option>`;
+    });
 }
 
 async function loadHomework() {

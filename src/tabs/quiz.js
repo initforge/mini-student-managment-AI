@@ -1,12 +1,46 @@
 // Quiz Tab - Math quiz generation with AI and Firebase
 import { showToast } from '../utils/toast.js';
 import { generateMathQuestions } from '../services/ai.js';
-import { saveQuiz as saveQuizToDb, getQuizzes } from '../services/firebase.js';
+import { saveQuiz as saveQuizToDb, getQuizzes, deleteQuiz as deleteQuizFromDb } from '../services/firebase.js';
 import { exportQuizToPDF } from '../services/export.js';
 
 let generatedQuestions = [];
 let savedQuizzes = [];
 let currentQuizConfig = {};
+
+// ===== REGISTER WINDOW FUNCTIONS IMMEDIATELY =====
+window.loadSavedQuiz = function (id) {
+  const quiz = savedQuizzes.find(q => q.id === id);
+  if (!quiz || !quiz.questions) {
+    showToast('Không tìm thấy bài kiểm tra', 'error');
+    return;
+  }
+  generatedQuestions = quiz.questions;
+  currentQuizConfig = { grade: quiz.grade, topic: quiz.topic, difficulty: quiz.difficulty };
+  renderQuizPreview(quiz.questions, quiz.topic, quiz.grade);
+  showToast('Đã tải bài kiểm tra', 'success');
+};
+
+window.deleteQuiz = async function (id) {
+  const quiz = savedQuizzes.find(q => q.id === id);
+  if (!quiz) {
+    showToast('Không tìm thấy bài kiểm tra', 'error');
+    return;
+  }
+
+  if (confirm(`Xóa bài "${quiz.name || quiz.topic}"?`)) {
+    try {
+      await deleteQuizFromDb(id);
+      showToast('Đã xóa bài kiểm tra', 'success');
+      await loadSavedQuizzes();
+    } catch (err) {
+      console.error('Delete error:', err);
+      showToast('Lỗi khi xóa: ' + err.message, 'error');
+    }
+  }
+};
+
+console.log('✅ Quiz functions registered: loadSavedQuiz, deleteQuiz');
 
 // Topic configurations by grade
 const topicsByGrade = {
@@ -186,10 +220,11 @@ function renderSavedQuizzes() {
   // Sort by createdAt desc
   const sorted = [...savedQuizzes].sort((a, b) => b.createdAt - a.createdAt);
 
-  container.innerHTML = sorted.slice(0, 10).map(quiz => `
-    <div class="saved-quiz-item" onclick="loadSavedQuiz('${quiz.id}')">
-      <span class="quiz-label">K${quiz.grade} - ${(quiz.topic || '').substring(0, 20)}${quiz.topic?.length > 20 ? '...' : ''}</span>
+  container.innerHTML = sorted.map(quiz => `
+    <div class="saved-quiz-item">
+      <span class="quiz-label" onclick="loadSavedQuiz('${quiz.id}')">${quiz.name || `K${quiz.grade} - ${quiz.topic}`}</span>
       <span class="difficulty-badge ${quiz.difficulty}">${getDifficultyLabel(quiz.difficulty)}</span>
+      <button class="btn-delete-quiz" onclick="event.stopPropagation(); window.deleteQuiz('${quiz.id}')" title="Xóa">🗑️</button>
     </div>
   `).join('');
 }
@@ -231,31 +266,50 @@ window.saveQuiz = async function () {
   }
 
   try {
-    await saveQuizToDb({
+    // Auto-generate quiz name using Gemini
+    let quizName = `${currentQuizConfig.topic} - ${currentQuizConfig.difficulty}`;
+
+    try {
+      const { generateQuizName } = await import('../services/ai.js');
+      quizName = await generateQuizName(
+        currentQuizConfig.grade,
+        currentQuizConfig.topic,
+        currentQuizConfig.difficulty,
+        generatedQuestions.length
+      );
+    } catch (err) {
+      console.log('Using fallback quiz name');
+    }
+
+    const quizId = await saveQuizToDb({
       ...currentQuizConfig,
+      name: quizName,
       questions: generatedQuestions,
       count: generatedQuestions.length
     });
-    showToast(`Đã lưu bài kiểm tra với ${generatedQuestions.length} câu hỏi!`, 'success');
+
+    // Generate shareable link
+    // IMPORTANT: Update with your actual Firebase Hosting domain
+    const baseUrl = 'https://mini-student-chat.web.app'; // Replace with your hosting URL
+    const shareableLink = `${baseUrl}/quiz-template.html?id=${quizId}`;
+
+    showToast(`Đã lưu: ${quizName}`, 'success');
+
+    // Show shareable link
+    setTimeout(() => {
+      prompt('Link chia sẻ bài kiểm tra (Ctrl+C để copy):', shareableLink);
+    }, 500);
+
     await loadSavedQuizzes();
   } catch (err) {
     console.error('Save error:', err);
-    showToast('Lỗi khi lưu bài kiểm tra', 'error');
+    showToast('Lỗi khi lưu bài kiểm tra: ' + err.message, 'error');
   }
 };
 
-window.loadSavedQuiz = function (id) {
-  const quiz = savedQuizzes.find(q => q.id === id);
-  if (!quiz || !quiz.questions) {
-    showToast('Không tìm thấy bài kiểm tra', 'error');
-    return;
-  }
+// Duplicate removed - function defined above at line 12
 
-  generatedQuestions = quiz.questions;
-  currentQuizConfig = { grade: quiz.grade, topic: quiz.topic, difficulty: quiz.difficulty };
-  renderQuizPreview(quiz.questions, quiz.topic, quiz.grade);
-  showToast('Đã tải bài kiểm tra', 'success');
-};
+// Duplicate removed - function defined above at line 24
 
 export function getGeneratedQuestions() {
   return generatedQuestions;

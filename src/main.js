@@ -7,6 +7,8 @@ import { initQuiz } from './tabs/quiz.js';
 import { initChatbot } from './chatbot.js';
 import { showToast } from './utils/toast.js';
 import { initSettings } from './services/settings.js';
+import { initSmsService } from './services/sms.js';
+import { getApp } from './services/firebase.js';
 
 // App State
 let isLoggedIn = false;
@@ -75,6 +77,13 @@ function initDashboard() {
 
   // Initialize settings
   initSettings();
+
+  // Initialize SMS service with Firebase app
+  try {
+    initSmsService(getApp());
+  } catch (err) {
+    console.warn('SMS service init failed:', err);
+  }
 
   // Initialize router for tab navigation
   initRouter();
