@@ -1,21 +1,21 @@
 // Chart Service - Attendance visualization using Chart.js
 import Chart from 'chart.js/auto';
 
-let attendanceChart = null;
-let weeklyChart = null;
-
 // Create attendance summary chart (Có mặt vs Vắng)
 export function createAttendancePieChart(canvasId, presentCount, absentCount) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return null;
 
-    // Destroy existing chart if any
-    if (attendanceChart) {
-        attendanceChart.destroy();
+    // Properly destroy existing chart using Chart.js getChart method
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) {
+        existingChart.destroy();
     }
 
+    console.log('[Chart] Creating pie chart with Present:', presentCount, 'Absent:', absentCount);
+
     const ctx = canvas.getContext('2d');
-    attendanceChart = new Chart(ctx, {
+    const chart = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: ['Có mặt', 'Vắng'],
@@ -49,7 +49,7 @@ export function createAttendancePieChart(canvasId, presentCount, absentCount) {
         }
     });
 
-    return attendanceChart;
+    return chart;
 }
 
 // Create weekly attendance bar chart
@@ -57,16 +57,17 @@ export function createWeeklyBarChart(canvasId, weekData) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return null;
 
-    // Destroy existing chart if any
-    if (weeklyChart) {
-        weeklyChart.destroy();
+    // Properly destroy existing chart
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) {
+        existingChart.destroy();
     }
 
     const ctx = canvas.getContext('2d');
-    weeklyChart = new Chart(ctx, {
+    const chart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: weekData.labels, // ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+            labels: weekData.labels,
             datasets: [
                 {
                     label: 'Có mặt',
@@ -112,7 +113,7 @@ export function createWeeklyBarChart(canvasId, weekData) {
         }
     });
 
-    return weeklyChart;
+    return chart;
 }
 
 // Generate week data from attendance records
