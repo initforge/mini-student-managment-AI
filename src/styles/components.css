@@ -1200,3 +1200,103 @@
 .btn .icon {
     margin-right: 0.25rem;
 }
+
+/* Saved Quizzes Section */
+.saved-quizzes-section {
+    background: var(--color-gray-50);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.saved-quizzes-section h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.875rem;
+    color: var(--color-gray-600);
+}
+
+.saved-quizzes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.saved-quiz-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: white;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-gray-200);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.saved-quiz-item:hover {
+    border-color: var(--color-primary);
+    background: var(--color-gray-50);
+    transform: translateX(4px);
+}
+
+.saved-quiz-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.saved-quiz-info strong {
+    font-size: 0.875rem;
+    color: var(--color-gray-800);
+}
+
+.saved-quiz-info .text-muted {
+    font-size: 0.75rem;
+    color: var(--color-gray-500);
+}
+
+.difficulty-badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-full);
+    font-weight: 600;
+}
+
+.difficulty-badge.easy {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.difficulty-badge.medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.difficulty-badge.hard {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.empty-state-small {
+    text-align: center;
+    padding: 1rem;
+    color: var(--color-gray-500);
+    font-size: 0.875rem;
+}
+
+/* Homework card delete button */
+.homework-card .btn-icon-sm.delete {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.homework-card {
+    position: relative;
+}
+
+.homework-card:hover .btn-icon-sm.delete {
+    opacity: 1;
+}

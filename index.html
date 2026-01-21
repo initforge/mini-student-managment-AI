@@ -381,6 +381,16 @@
           </div>
 
           <div class="quiz-generator">
+            <!-- Saved Quizzes List -->
+            <div class="saved-quizzes-section">
+              <h4>📂 Bài kiểm tra đã lưu</h4>
+              <div class="saved-quizzes-list" id="saved-quizzes-list">
+                <div class="empty-state-small">
+                  <p>Đang tải...</p>
+                </div>
+              </div>
+            </div>
+
             <div class="quiz-form">
               <h3>Cấu hình bài kiểm tra</h3>
               <div class="form-group">
@@ -503,8 +513,8 @@
             </select>
           </div>
           <div class="form-group">
-            <label for="student-zalo">Zalo ID Phụ Huynh</label>
-            <input type="text" id="student-zalo" placeholder="Nhập Zalo User ID (tùy chọn)">
+            <label for="student-zalo">SĐT Phụ huynh</label>
+            <input type="tel" id="student-zalo" placeholder="0901234567">
           </div>
         </form>
       </div>
@@ -513,6 +523,42 @@
         <button class="btn btn-primary" id="btn-save-student">Lưu</button>
       </div>
     </div>
+
+    <!-- Edit Student Modal -->
+    <div class="modal" id="modal-edit-student">
+      <div class="modal-header">
+        <h3>Chỉnh Sửa Học Sinh</h3>
+        <button class="modal-close" data-modal="modal-edit-student">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-edit-student">
+          <input type="hidden" id="edit-student-id">
+          <div class="form-group">
+            <label for="edit-student-name">Họ và tên <span class="required">*</span></label>
+            <input type="text" id="edit-student-name" required placeholder="Nguyễn Văn A">
+          </div>
+          <div class="form-group">
+            <label for="edit-student-class">Lớp <span class="required">*</span></label>
+            <select id="edit-student-class" required class="select-input">
+              <option value="">Chọn lớp</option>
+              <option value="8A">Lớp 8A</option>
+              <option value="8B">Lớp 8B</option>
+              <option value="9A">Lớp 9A</option>
+              <option value="9B">Lớp 9B</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="edit-student-zalo">SĐT Phụ huynh</label>
+            <input type="tel" id="edit-student-zalo" placeholder="0901234567">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-modal="modal-edit-student">Hủy</button>
+        <button class="btn btn-primary" id="btn-update-student">Cập nhật</button>
+      </div>
+    </div>
+
 
     <!-- Add Homework Modal -->
     <div class="modal" id="modal-add-homework">

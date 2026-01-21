@@ -128,8 +128,10 @@ export function generateWeekData(attendanceByDate, studentCount) {
         date.setDate(date.getDate() - i);
         const dateKey = formatDateKey(date);
         const dayLabel = dayNames[date.getDay()];
+        const dateNum = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-        labels.push(dayLabel);
+        // Format: "T2 20/01"
+        labels.push(`${dayLabel} ${dateNum}`);
 
         const dayData = attendanceByDate[dateKey] || {};
         let presentCount = 0;

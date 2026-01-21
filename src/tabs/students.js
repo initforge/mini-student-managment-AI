@@ -4,6 +4,7 @@ import { showToast } from '../utils/toast.js';
 import {
   getStudents as fetchStudents,
   addStudent as addStudentToDb,
+  updateStudent as updateStudentInDb,
   deleteStudent as deleteStudentFromDb,
   subscribeToStudents
 } from '../services/firebase.js';
@@ -35,11 +36,15 @@ async function loadStudents() {
 function setupEventListeners() {
   // Add student button
   document.getElementById('btn-add-student')?.addEventListener('click', () => {
+    document.getElementById('form-add-student')?.reset();
     openModal('modal-add-student');
   });
 
-  // Save student button
+  // Save new student
   document.getElementById('btn-save-student')?.addEventListener('click', saveStudent);
+
+  // Update existing student
+  document.getElementById('btn-update-student')?.addEventListener('click', updateStudent);
 
   // Search
   document.getElementById('student-search')?.addEventListener('input', (e) => {
@@ -80,18 +85,13 @@ function renderStudents(search = '', filterClass = '') {
   filtered.sort((a, b) => a.class.localeCompare(b.class) || a.name.localeCompare(b.name));
 
   container.innerHTML = `
-    <div class="table-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportStudentsList()">
-        📄 Xuất PDF
-      </button>
-    </div>
     <table class="data-table">
       <thead>
         <tr>
           <th style="width: 8%;">STT</th>
           <th style="width: 30%;">Họ và tên</th>
           <th style="width: 12%;">Lớp</th>
-          <th style="width: 30%;">Zalo Phụ huynh</th>
+          <th style="width: 30%;">SĐT Phụ huynh</th>
           <th style="width: 20%;">Thao tác</th>
         </tr>
       </thead>
@@ -157,15 +157,58 @@ async function saveStudent() {
   }
 }
 
-// Global functions for inline onclick
+// Open edit modal with student data
 window.editStudent = function (id) {
   const student = students.find(s => s.id === id);
-  if (student) {
-    showToast(`Chỉnh sửa: ${student.name}`, 'info');
-    // TODO: Open edit modal
-  }
+  if (!student) return;
+
+  // Populate edit form
+  document.getElementById('edit-student-id').value = id;
+  document.getElementById('edit-student-name').value = student.name;
+  document.getElementById('edit-student-class').value = student.class;
+  document.getElementById('edit-student-zalo').value = student.zaloId || '';
+
+  openModal('modal-edit-student');
 };
 
+// Update existing student
+async function updateStudent() {
+  const id = document.getElementById('edit-student-id')?.value;
+  const name = document.getElementById('edit-student-name')?.value?.trim();
+  const studentClass = document.getElementById('edit-student-class')?.value;
+  const zaloId = document.getElementById('edit-student-zalo')?.value?.trim();
+
+  if (!id || !name || !studentClass) {
+    showToast('Vui lòng điền đầy đủ thông tin', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-update-student');
+  btn.disabled = true;
+  btn.textContent = 'Đang cập nhật...';
+
+  try {
+    const student = students.find(s => s.id === id);
+    await updateStudentInDb(id, {
+      name,
+      class: studentClass,
+      zaloId: zaloId || '',
+      avatar: student?.avatar || '👤',
+      createdAt: student?.createdAt || Date.now()
+    });
+
+    closeModal('modal-edit-student');
+    showToast(`Đã cập nhật học sinh ${name}`, 'success');
+  } catch (err) {
+    console.error('Error updating student:', err);
+    showToast('Lỗi: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Cập nhật';
+  }
+}
+
+// Delete student with confirmation
 window.deleteStudent = async function (id) {
   const student = students.find(s => s.id === id);
   if (student && confirm(`Xác nhận xóa học sinh ${student.name}?`)) {

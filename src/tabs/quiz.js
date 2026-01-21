@@ -1,10 +1,11 @@
 // Quiz Tab - Math quiz generation with AI and Firebase
 import { showToast } from '../utils/toast.js';
 import { generateMathQuestions } from '../services/ai.js';
-import { saveQuiz as saveQuizToDb } from '../services/firebase.js';
+import { saveQuiz as saveQuizToDb, getQuizzes } from '../services/firebase.js';
 import { exportQuizToPDF } from '../services/export.js';
 
 let generatedQuestions = [];
+let savedQuizzes = [];
 let currentQuizConfig = {};
 
 // Topic configurations by grade
@@ -34,13 +35,22 @@ const topicsByGrade = {
 
 export function initQuiz() {
   setupEventListeners();
-  updateTopicOptions(); // Initialize topics for default grade
+  updateTopicOptions();
+  loadSavedQuizzes();
+}
+
+async function loadSavedQuizzes() {
+  try {
+    savedQuizzes = await getQuizzes();
+    renderSavedQuizzes();
+  } catch (err) {
+    console.error('Error loading quizzes:', err);
+    savedQuizzes = [];
+  }
 }
 
 function setupEventListeners() {
   document.getElementById('btn-generate-quiz')?.addEventListener('click', generateQuiz);
-
-  // Update topics when grade changes
   document.getElementById('quiz-grade')?.addEventListener('change', updateTopicOptions);
 }
 
@@ -53,7 +63,6 @@ function updateTopicOptions() {
   const grade = gradeSelect.value;
   const topics = topicsByGrade[grade] || [];
 
-  // Clear and repopulate
   topicSelect.innerHTML = topics.map(t =>
     `<option value="${t.value}">${t.label}</option>`
   ).join('');
@@ -66,7 +75,6 @@ async function generateQuiz() {
   const difficulty = document.getElementById('quiz-difficulty')?.value;
   const count = parseInt(document.getElementById('quiz-count')?.value || '10');
 
-  // Validate count
   if (count < 1 || count > 50) {
     showToast('Số câu hỏi phải từ 1 đến 50', 'error');
     return;
@@ -77,10 +85,8 @@ async function generateQuiz() {
 
   if (!preview) return;
 
-  // Save config for export
   currentQuizConfig = { grade, topic: topicLabel, difficulty };
 
-  // Show loading
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Đang tạo câu hỏi...';
   preview.innerHTML = `
@@ -95,18 +101,17 @@ async function generateQuiz() {
     renderQuizPreview(questions, topicLabel, grade);
     showToast(`Đã tạo ${questions.length} câu hỏi trắc nghiệm!`, 'success');
   } catch (err) {
-    showToast('Có lỗi khi tạo câu hỏi', 'error');
-    console.error(err);
+    showToast('Có lỗi khi tạo câu hỏi: ' + err.message, 'error');
+    console.error('Generate quiz error:', err);
     preview.innerHTML = `
       <div class="empty-state">
         <span class="empty-state-icon">❌</span>
         <h4>Có lỗi xảy ra</h4>
-        <p>Vui lòng thử lại sau</p>
+        <p>${err.message || 'Vui lòng thử lại sau'}</p>
       </div>
     `;
   }
 
-  // Reset button
   btn.disabled = false;
   btn.innerHTML = '<span class="btn-icon">🤖</span><span>Tạo Câu Hỏi Bằng AI</span>';
 }
@@ -129,7 +134,6 @@ function renderQuizPreview(questions, topicLabel, grade) {
     </div>
     <div class="quiz-actions">
       <button class="btn btn-secondary" onclick="regenerateQuiz()">🔄 Tạo lại</button>
-      <button class="btn btn-accent" onclick="exportQuizPDF()">📄 Xuất PDF</button>
       <button class="btn btn-primary" onclick="saveQuiz()">💾 Lưu bài kiểm tra</button>
     </div>
   `;
@@ -140,7 +144,7 @@ function renderQuestion(question, number) {
     <div class="quiz-question">
       <div class="quiz-question-header">
         <span class="quiz-question-number">${number}</span>
-        <span class="quiz-question-text">${question.text}</span>
+        <span class="quiz-question-text">${formatMathText(question.text)}</span>
       </div>
       <div class="quiz-options">
         ${question.options.map((opt, i) => {
@@ -149,7 +153,7 @@ function renderQuestion(question, number) {
     return `
             <div class="quiz-option ${isCorrect ? 'correct' : ''}">
               <span class="quiz-option-letter">${letter}</span>
-              <span>${opt}</span>
+              <span>${formatMathText(opt)}</span>
               ${isCorrect ? '<span class="correct-mark">✓</span>' : ''}
             </div>
           `;
@@ -157,6 +161,55 @@ function renderQuestion(question, number) {
       </div>
     </div>
   `;
+}
+
+// Format math text - handle common math symbols
+function formatMathText(text) {
+  if (!text) return '';
+  return text
+    .replace(/\^2/g, '²')
+    .replace(/\^3/g, '³')
+    .replace(/sqrt\(([^)]+)\)/g, '√$1')
+    .replace(/\*/g, '×')
+    .replace(/\//g, '÷');
+}
+
+function renderSavedQuizzes() {
+  const container = document.getElementById('saved-quizzes-list');
+  if (!container) return;
+
+  if (savedQuizzes.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state-small">
+        <p>Chưa có bài kiểm tra nào được lưu</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Sort by createdAt desc
+  const sorted = [...savedQuizzes].sort((a, b) => b.createdAt - a.createdAt);
+
+  container.innerHTML = sorted.slice(0, 5).map(quiz => `
+    <div class="saved-quiz-item" onclick="loadSavedQuiz('${quiz.id}')">
+      <div class="saved-quiz-info">
+        <strong>Khối ${quiz.grade} - ${quiz.topic}</strong>
+        <span class="text-muted">${quiz.count || quiz.questions?.length || 0} câu • ${formatDateTime(quiz.createdAt)}</span>
+      </div>
+      <span class="difficulty-badge ${quiz.difficulty}">${getDifficultyLabel(quiz.difficulty)}</span>
+    </div>
+  `).join('');
+}
+
+function formatDateTime(timestamp) {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+}
+
+function getDifficultyLabel(difficulty) {
+  const labels = { easy: 'Dễ', medium: 'TB', hard: 'Khó' };
+  return labels[difficulty] || difficulty;
 }
 
 window.regenerateQuiz = function () {
@@ -191,10 +244,24 @@ window.saveQuiz = async function () {
       count: generatedQuestions.length
     });
     showToast(`Đã lưu bài kiểm tra với ${generatedQuestions.length} câu hỏi!`, 'success');
+    await loadSavedQuizzes();
   } catch (err) {
     console.error('Save error:', err);
     showToast('Lỗi khi lưu bài kiểm tra', 'error');
   }
+};
+
+window.loadSavedQuiz = function (id) {
+  const quiz = savedQuizzes.find(q => q.id === id);
+  if (!quiz || !quiz.questions) {
+    showToast('Không tìm thấy bài kiểm tra', 'error');
+    return;
+  }
+
+  generatedQuestions = quiz.questions;
+  currentQuizConfig = { grade: quiz.grade, topic: quiz.topic, difficulty: quiz.difficulty };
+  renderQuizPreview(quiz.questions, quiz.topic, quiz.grade);
+  showToast('Đã tải bài kiểm tra', 'success');
 };
 
 export function getGeneratedQuestions() {
