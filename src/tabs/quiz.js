@@ -113,7 +113,7 @@ async function generateQuiz() {
   }
 
   btn.disabled = false;
-  btn.innerHTML = '<span class="btn-icon">🤖</span><span>Tạo Câu Hỏi Bằng AI</span>';
+  btn.innerHTML = '🤖 Tạo Câu Hỏi';
 }
 
 function renderQuizPreview(questions, topicLabel, grade) {
@@ -179,23 +179,16 @@ function renderSavedQuizzes() {
   if (!container) return;
 
   if (savedQuizzes.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state-small">
-        <p>Chưa có bài kiểm tra nào được lưu</p>
-      </div>
-    `;
+    container.innerHTML = '<span class="empty-hint">Chưa có bài lưu</span>';
     return;
   }
 
   // Sort by createdAt desc
   const sorted = [...savedQuizzes].sort((a, b) => b.createdAt - a.createdAt);
 
-  container.innerHTML = sorted.slice(0, 5).map(quiz => `
+  container.innerHTML = sorted.slice(0, 10).map(quiz => `
     <div class="saved-quiz-item" onclick="loadSavedQuiz('${quiz.id}')">
-      <div class="saved-quiz-info">
-        <strong>Khối ${quiz.grade} - ${quiz.topic}</strong>
-        <span class="text-muted">${quiz.count || quiz.questions?.length || 0} câu • ${formatDateTime(quiz.createdAt)}</span>
-      </div>
+      <span class="quiz-label">K${quiz.grade} - ${(quiz.topic || '').substring(0, 20)}${quiz.topic?.length > 20 ? '...' : ''}</span>
       <span class="difficulty-badge ${quiz.difficulty}">${getDifficultyLabel(quiz.difficulty)}</span>
     </div>
   `).join('');

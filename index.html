@@ -286,31 +286,50 @@
       <div class="tab-content-wrapper">
         <!-- Students Tab -->
         <section id="tab-students" class="tab-content active">
-          <div class="tab-header">
-            <h2>Danh Sách Học Sinh</h2>
-            <button class="btn btn-primary" id="btn-add-student">
-              <span>➕</span> Thêm Học Sinh
-            </button>
+          <!-- Mini Tabs -->
+          <div class="mini-tabs">
+            <button class="mini-tab active" data-mini-tab="classes">📁 Quản lý Lớp</button>
+            <button class="mini-tab" data-mini-tab="students">👥 Danh sách Học Sinh</button>
           </div>
 
-          <div class="search-filter-bar">
-            <div class="search-box">
-              <span class="search-icon">🔍</span>
-              <input type="text" id="student-search" placeholder="Tìm kiếm học sinh...">
+          <!-- Mini Tab: Class Management -->
+          <div class="mini-tab-content active" id="mini-tab-classes">
+            <div class="tab-header">
+              <h2>Quản Lý Lớp</h2>
+              <button class="btn btn-primary" id="btn-add-class">
+                <span>➕</span> Thêm Lớp
+              </button>
             </div>
-            <div class="filter-group">
-              <select id="filter-class" class="select-input">
-                <option value="">Tất cả lớp</option>
-                <option value="8A">Lớp 8A</option>
-                <option value="8B">Lớp 8B</option>
-                <option value="9A">Lớp 9A</option>
-                <option value="9B">Lớp 9B</option>
-              </select>
+            <div class="classes-grid" id="classes-list">
+              <!-- Classes will be rendered here -->
             </div>
           </div>
 
-          <div class="students-grid" id="students-list">
-            <!-- Student table will be rendered here -->
+          <!-- Mini Tab: Students List -->
+          <div class="mini-tab-content" id="mini-tab-students">
+            <div class="tab-header">
+              <h2>Danh Sách Học Sinh</h2>
+              <button class="btn btn-primary" id="btn-add-student">
+                <span>➕</span> Thêm Học Sinh
+              </button>
+            </div>
+
+            <div class="search-filter-bar">
+              <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="student-search" placeholder="Tìm kiếm học sinh...">
+              </div>
+              <div class="filter-group">
+                <select id="filter-class" class="select-input">
+                  <option value="">Tất cả lớp</option>
+                  <!-- Classes will be populated dynamically -->
+                </select>
+              </div>
+            </div>
+
+            <div class="students-grid" id="students-list">
+              <!-- Student table will be rendered here -->
+            </div>
           </div>
         </section>
 
@@ -381,55 +400,62 @@
           </div>
 
           <div class="quiz-generator">
-            <!-- Saved Quizzes List -->
-            <div class="saved-quizzes-section">
-              <h4>📂 Bài kiểm tra đã lưu</h4>
-              <div class="saved-quizzes-list" id="saved-quizzes-list">
-                <div class="empty-state-small">
-                  <p>Đang tải...</p>
+            <!-- Two Column Layout: Sidebar + Main -->
+            <div class="quiz-layout">
+              <!-- Left Sidebar: Saved Quizzes + Config -->
+              <div class="quiz-sidebar">
+                <!-- Saved Quizzes -->
+                <div class="quiz-sidebar-section">
+                  <h4>📂 Bài đã lưu</h4>
+                  <div class="saved-quizzes-list" id="saved-quizzes-list">
+                    <span class="empty-hint">Chưa có bài lưu</span>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <div class="quiz-form">
-              <h3>Cấu hình bài kiểm tra</h3>
-              <div class="form-group">
-                <label for="quiz-grade">Khối</label>
-                <select id="quiz-grade" class="select-input">
-                  <option value="8">Khối 8</option>
-                  <option value="9">Khối 9</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="quiz-topic">Chủ đề / Dạng bài</label>
-                <select id="quiz-topic" class="select-input">
-                  <!-- Options will be populated by JS based on grade -->
-                </select>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="quiz-difficulty">Mức độ</label>
-                  <select id="quiz-difficulty" class="select-input">
-                    <option value="easy">Dễ</option>
-                    <option value="medium">Trung bình</option>
-                  </select>
+                <!-- Config Form -->
+                <div class="quiz-sidebar-section">
+                  <h4>⚙️ Cấu hình</h4>
+                  <div class="form-group">
+                    <label for="quiz-grade">Khối</label>
+                    <select id="quiz-grade" class="select-input">
+                      <option value="8">Khối 8</option>
+                      <option value="9">Khối 9</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="quiz-topic">Chủ đề</label>
+                    <select id="quiz-topic" class="select-input">
+                      <!-- Options populated by JS -->
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="quiz-difficulty">Mức độ</label>
+                      <select id="quiz-difficulty" class="select-input">
+                        <option value="easy">Dễ</option>
+                        <option value="medium">Trung bình</option>
+                        <option value="hard">Khó</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="quiz-count">Số câu</label>
+                      <input type="number" id="quiz-count" class="text-input" value="5" min="1" max="20">
+                    </div>
+                  </div>
+                  <button class="btn btn-accent btn-generate" id="btn-generate-quiz">
+                    🤖 Tạo Câu Hỏi
+                  </button>
                 </div>
-                <div class="form-group">
-                  <label for="quiz-count">Số câu hỏi</label>
-                  <input type="number" id="quiz-count" class="text-input" value="10" min="1" max="50"
-                    placeholder="Nhập số câu">
-                </div>
               </div>
-              <button class="btn btn-accent btn-generate" id="btn-generate-quiz">
-                <span class="btn-icon">🤖</span>
-                <span>Tạo Câu Hỏi Bằng AI</span>
-              </button>
-            </div>
 
-            <div class="quiz-preview" id="quiz-preview">
-              <div class="preview-placeholder">
-                <span class="placeholder-icon">📝</span>
-                <p>Chọn cấu hình và bấm "Tạo Câu Hỏi" để xem trước các câu hỏi</p>
+              <!-- Main Content: Preview -->
+              <div class="quiz-main">
+                <div class="quiz-preview" id="quiz-preview">
+                  <div class="preview-placeholder">
+                    <span class="placeholder-icon">📝</span>
+                    <p>Chọn cấu hình và bấm "Tạo Câu Hỏi" để xem trước</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -541,10 +567,7 @@
             <label for="edit-student-class">Lớp <span class="required">*</span></label>
             <select id="edit-student-class" required class="select-input">
               <option value="">Chọn lớp</option>
-              <option value="8A">Lớp 8A</option>
-              <option value="8B">Lớp 8B</option>
-              <option value="9A">Lớp 9A</option>
-              <option value="9B">Lớp 9B</option>
+              <!-- Classes populated dynamically -->
             </select>
           </div>
           <div class="form-group">
@@ -558,6 +581,31 @@
         <button class="btn btn-primary" id="btn-update-student">Cập nhật</button>
       </div>
     </div>
+
+    <!-- Add Class Modal -->
+    <div class="modal" id="modal-add-class">
+      <div class="modal-header">
+        <h3>Thêm Lớp Mới</h3>
+        <button class="modal-close" data-modal="modal-add-class">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-add-class">
+          <div class="form-group">
+            <label for="class-name">Tên lớp <span class="required">*</span></label>
+            <input type="text" id="class-name" required placeholder="VD: 8A, 9B, 10C...">
+          </div>
+          <div class="form-group">
+            <label for="class-teacher">Giáo viên chủ nhiệm</label>
+            <input type="text" id="class-teacher" placeholder="Nguyễn Văn B">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-modal="modal-add-class">Hủy</button>
+        <button class="btn btn-primary" id="btn-save-class">Lưu</button>
+      </div>
+    </div>
+
 
 
     <!-- Add Homework Modal -->
