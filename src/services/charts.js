@@ -157,12 +157,15 @@ function formatDateKey(date) {
 
 // Cleanup charts
 export function destroyCharts() {
-    if (attendanceChart) {
-        attendanceChart.destroy();
-        attendanceChart = null;
+    const todayCanvas = document.getElementById('today-chart');
+    const weeklyCanvas = document.getElementById('weekly-chart');
+
+    if (todayCanvas) {
+        const chart = Chart.getChart(todayCanvas);
+        if (chart) chart.destroy();
     }
-    if (weeklyChart) {
-        weeklyChart.destroy();
-        weeklyChart = null;
+    if (weeklyCanvas) {
+        const chart = Chart.getChart(weeklyCanvas);
+        if (chart) chart.destroy();
     }
 }
