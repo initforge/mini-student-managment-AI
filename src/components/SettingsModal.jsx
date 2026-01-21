@@ -1,25 +1,58 @@
 import React, { useState, useEffect } from 'react'
 import { useToast } from '../contexts/ToastContext'
-import { getGeminiApiKey, saveGeminiApiKey, isGeminiConfigured } from '../services/settings'
-import { isSmsConfigured } from '../services/sms'
+import { getGeminiApiKey, saveGeminiApiKey, isGeminiConfigured, loadSettings, saveSettings } from '../services/settings'
+import { isSmsConfigured, saveSmsConfig } from '../services/sms'
 
 export default function SettingsModal({ onClose }) {
     const { showToast } = useToast()
     const [geminiKey, setGeminiKey] = useState('')
+    const [smsApiKey, setSmsApiKey] = useState('')
+    const [smsSecretKey, setSmsSecretKey] = useState('')
+    const [smsBrandName, setSmsBrandName] = useState('')
+    const [smsStatus, setSmsStatus] = useState(false)
 
     useEffect(() => {
         setGeminiKey(getGeminiApiKey() || '')
+        // Load SMS settings from localStorage
+        try {
+            const saved = localStorage.getItem('eduassist_settings')
+            if (saved) {
+                const settings = JSON.parse(saved)
+                setSmsApiKey(settings.smsApiKey || '')
+                setSmsSecretKey(settings.smsSecretKey || '')
+                setSmsBrandName(settings.smsBrandName || '')
+            }
+        } catch (err) {
+            console.error('Error loading SMS settings:', err)
+        }
+        setSmsStatus(isSmsConfigured())
     }, [])
 
     const handleSave = () => {
+        // Save Gemini API key
         saveGeminiApiKey(geminiKey)
+
+        // Save SMS config
+        const newSettings = {
+            geminiApiKey: geminiKey,
+            smsApiKey: smsApiKey,
+            smsSecretKey: smsSecretKey,
+            smsBrandName: smsBrandName || 'Baotrixemay'
+        }
+        try {
+            localStorage.setItem('eduassist_settings', JSON.stringify(newSettings))
+            saveSmsConfig(smsApiKey, smsSecretKey, smsBrandName)
+        } catch (err) {
+            console.error('Error saving SMS config:', err)
+        }
+
         showToast('Đã lưu cài đặt', 'success')
         onClose()
     }
 
     return (
         <div className="modal-overlay" style={{ display: 'flex' }} onClick={onClose}>
-            <div className="modal modal-settings" onClick={e => e.stopPropagation()}>
+            <div className="modal modal-settings" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
                 <div className="modal-header">
                     <h3>
                         <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -30,8 +63,9 @@ export default function SettingsModal({ onClose }) {
                     </h3>
                     <button className="modal-close" onClick={onClose}>×</button>
                 </div>
-                <div className="modal-body">
+                <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
                     <form id="form-settings">
+                        {/* Gemini API Section */}
                         <div className="form-group">
                             <label className="label-with-icon">
                                 <svg className="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -51,7 +85,54 @@ export default function SettingsModal({ onClose }) {
                             />
                         </div>
 
-                        <div className="form-group">
+                        {/* SMS API Section */}
+                        <div style={{ borderTop: '1px solid var(--border)', marginTop: '1rem', paddingTop: '1rem' }}>
+                            <h4 style={{ marginBottom: '0.75rem', color: 'var(--text)', fontSize: '0.95rem' }}>
+                                📱 Cấu hình SMS (eSMS.vn)
+                            </h4>
+
+                            <div className="form-group">
+                                <label className="label-with-icon">
+                                    API Key
+                                    <a href="https://account.esms.vn/Home/Index" target="_blank" rel="noreferrer" className="link-help">(Lấy key)</a>
+                                </label>
+                                <input
+                                    type="password"
+                                    placeholder="Nhập API Key từ eSMS"
+                                    className="input-field"
+                                    value={smsApiKey}
+                                    onChange={e => setSmsApiKey(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label className="label-with-icon">Secret Key</label>
+                                <input
+                                    type="password"
+                                    placeholder="Nhập Secret Key từ eSMS"
+                                    className="input-field"
+                                    value={smsSecretKey}
+                                    onChange={e => setSmsSecretKey(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label className="label-with-icon">Brandname (tùy chọn)</label>
+                                <input
+                                    type="text"
+                                    placeholder="Baotrixemay"
+                                    className="input-field"
+                                    value={smsBrandName}
+                                    onChange={e => setSmsBrandName(e.target.value)}
+                                />
+                                <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                                    Để trống sẽ dùng "Baotrixemay". Brandname cần được đăng ký với eSMS.
+                                </small>
+                            </div>
+                        </div>
+
+                        {/* Status Indicators */}
+                        <div className="form-group" style={{ marginTop: '1rem' }}>
                             <label className="label-with-icon">
                                 <svg className="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -68,7 +149,7 @@ export default function SettingsModal({ onClose }) {
                                     <span>Gemini AI</span>
                                 </div>
                                 <div className="status-item">
-                                    <span className="status-dot" style={{ background: isSmsConfigured() ? '#10b981' : '#ef4444' }}></span>
+                                    <span className="status-dot" style={{ background: (smsApiKey && smsSecretKey) ? '#10b981' : '#ef4444' }}></span>
                                     <span>SMS</span>
                                 </div>
                             </div>
